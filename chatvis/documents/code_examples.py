@@ -2,21 +2,18 @@ from pydantic import BaseModel
 
 
 class CodeExample(BaseModel):
-    name: str
     code: str
 
 
-CODE_EXAMPLES: list[CodeExample] = [
-    CodeExample(
-        name="code_to_read",
+CODE_EXAMPLES: dict[str, CodeExample] = {
+    "code_to_read": CodeExample(
         code="""
 from paraview.simple import *
 # read the input data
 ml100vtk = LegacyVTKReader(FileNames=<input_path>)
 """,
     ),
-    CodeExample(
-        name="code_to_slice",
+    "code_to_slice": CodeExample(
         code="""
 from paraview.simple import *
 # create a new slice
@@ -27,8 +24,7 @@ slice1.SliceOffsetValues = [0.0]
 slice1.PointMergeMethod = 'Uniform Binning'
 """,
     ),
-    CodeExample(
-        name="code_to_contour",
+    "code_to_contour": CodeExample(
         code="""
 from paraview.simple import *
 # create a new contour
@@ -38,8 +34,7 @@ contour1.Isosurfaces = [0.5]
 contour1.PointMergeMethod = 'Uniform Binning'
 """,
     ),
-    CodeExample(
-        name="code_to_clip",
+    "code_to_clip": CodeExample(
         code="""
 from paraview.simple import *
 # create a new clip filter
@@ -49,8 +44,7 @@ clip.ClipType.Origin = [0.0, 0.0, 0.0]
 clip.ClipType.Normal = [1.0, 0.0, 0.0]
 """,
     ),
-    CodeExample(
-        name="code_to_color_transfer_function",
+    "code_to_color_transfer_function": CodeExample(
         code="""
 from paraview.simple import *
 # get color transfer function/color map for 'var0'
@@ -58,8 +52,7 @@ var0LUT = GetColorTransferFunction('var0')
 var0LUT.RGBPoints = [min, 0.0, 0.0, 0.75, (min + max) / 2.0, 0.75, 0.75, 0.75, max, 0.75, 0.0, 0.0]
 """,
     ),
-    CodeExample(
-        name="code_to_opacity_transfer_function",
+    "code_to_opacity_transfer_function": CodeExample(
         code="""
 from paraview.simple import *
 # get opacity transfer function/opacity map for 'var0'
@@ -67,8 +60,7 @@ var0PWF = GetOpacityTransferFunction('var0')
 var0PWF.Points = [min, 0.0, 0.5, 0.0, (min + max) / 2.0, 0.5, 0.5, 0.0, max, 1.0, 0.5, 0.0]
 """,
     ),
-    CodeExample(
-        name="code_to_create_layout",
+    "code_to_create_layout": CodeExample(
         code="""
 from paraview.simple import *
 # create new layout object
@@ -76,8 +68,7 @@ layout = CreateLayout(name='Layout')
 layout.AssignView(0, renderView)
 """,
     ),
-    CodeExample(
-        name="code_to_contour1Display",
+    "code_to_contour1Display": CodeExample(
         code="""
 from paraview.simple import *
 # show data
@@ -86,8 +77,7 @@ contour1Display.ColorArrayName = ['POINTS', '']
 contour1Display.DiffuseColor = [1.0, 0.0, 0.0]
 """,
     ),
-    CodeExample(
-        name="code_to_render_view",
+    "code_to_render_view": CodeExample(
         code="""
 from paraview.simple import *
 # create view
@@ -104,8 +94,7 @@ renderView.ResetActiveCameraToPositiveX()
 renderView.ResetCamera()
 """,
     ),
-    CodeExample(
-        name="code_to_isometric_view",
+    "code_to_isometric_view": CodeExample(
         code="""
 from paraview.simple import *
 # set render view direction
@@ -113,8 +102,7 @@ renderView.ApplyIsometricView()
 renderView.ResetCamera()
 """,
     ),
-    CodeExample(
-        name="code_to_save",
+    "code_to_save": CodeExample(
         code="""
 from paraview.simple import *
 # Save a screenshot of the render view
@@ -126,8 +114,7 @@ SaveScreenshot(
 )
 """,
     ),
-    CodeExample(
-        name="code_to_stream_tracer",
+    "code_to_stream_tracer": CodeExample(
         code="""
 from paraview.simple import *
 # create a new stream tacer
@@ -138,8 +125,7 @@ streamTracer = StreamTracer(
 )
 """,
     ),
-    CodeExample(
-        name="code_to_glyph",
+    "code_to_glyph": CodeExample(
         code="""
 from paraview.simple import *
 # create a new glyph
@@ -149,8 +135,7 @@ glyph.ScaleArray = ['POINTS', 'V']
 glyph.ScaleFactor = 0.05
 """,
     ),
-    CodeExample(
-        name="code_to_tube",
+    "code_to_tube": CodeExample(
         code="""
 from paraview.simple import *
 # create a new tube
@@ -158,8 +143,7 @@ tube = Tube(registrationName='Tube1', Input=streamTracer)
 tube.Radius = 0.075
 """,
     ),
-    CodeExample(
-        name="code_to_color_tube_glyphs_Temp_variable",
+    "code_to_color_tube_glyphs_Temp_variable": CodeExample(
         code="""
 from paraview.simple import *
 # color tubes and glyphs by Temp variable
@@ -169,4 +153,4 @@ tubeDisplay.RescaleTransferFunctionToDataRange(True)
 glyphDisplay.RescaleTransferFunctionToDataRange(True)
 """,
     ),
-]
+}
