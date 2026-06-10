@@ -250,12 +250,12 @@ dependencies = [
     { name = "openai" },
     { name = "pandas" },
     { name = "pydantic" },
-    { name = "pytest" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "jupyter" },
+    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -263,11 +263,13 @@ requires-dist = [
     { name = "openai", specifier = ">=2.41.0" },
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "pydantic", specifier = ">=2.13.4" },
-    { name = "pytest", specifier = ">=9.0.3" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "jupyter", specifier = ">=1.1.1" }]
+dev = [
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "pytest", specifier = ">=9.0.3" },
+]
 
 [[package]]
 name = "colorama"

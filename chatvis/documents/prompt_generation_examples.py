@@ -3,13 +3,13 @@ from string import Template
 from pydantic import BaseModel
 
 
-class PromptExample(BaseModel):
+class PromptGenerationExample(BaseModel):
     input_prompt: Template
     generated_prompt: Template
 
 
-PROMPT_EXAMPLES: dict[str, PromptExample] = {
-    "ml-dvr": PromptExample(
+PROMPT_GENERATION_EXAMPLES: dict[str, PromptGenerationExample] = {
+    "ml-dvr": PromptGenerationExample(
         input_prompt=Template(
             template="""
 I would like to use ParaView to visualize a dataset.
@@ -39,7 +39,7 @@ Requirements:
 """
         ),
     ),
-    "ml-iso": PromptExample(
+    "ml-iso": PromptGenerationExample(
         input_prompt=Template(
             template="""
 I would like to use ParaView to visualize a dataset.
@@ -72,7 +72,7 @@ Requirements step-by-step:
 """
         ),
     ),
-    "ml-slice-iso": PromptExample(
+    "ml-slice-iso": PromptGenerationExample(
         input_prompt=Template(
             template="""
 I would like to use ParaView to visualize a dataset.
@@ -104,7 +104,7 @@ Requirements:
 """
         ),
     ),
-    "points-surf-clip": PromptExample(
+    "points-surf-clip": PromptGenerationExample(
         input_prompt=Template(
             template="""
 I would like to use ParaView to visualize a dataset.
@@ -118,7 +118,7 @@ The rendered view and saved screenshot should be 1920 x 1080 pixels.
         ),
         generated_prompt=Template(template=""),
     ),
-    "stream-glyph": PromptExample(
+    "stream-glyph": PromptGenerationExample(
         input_prompt=Template(
             template="""
 I would like to use ParaView to visualize a dataset.
