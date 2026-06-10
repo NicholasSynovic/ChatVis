@@ -120,6 +120,49 @@ SaveScreenshot(
 )
 """,
     ),
+    PythonCode(
+        name="code_to_stream_tracer",
+        code="""
+from paraview.simple import *
+# create a new stream tacer
+streamTracer = StreamTracer(
+    registrationName='StreamTracer1',
+    Input=velocity,
+    SeedType='Point Cloud',
+)
+""",
+    ),
+    PythonCode(
+        name="code_to_glyph",
+        code="""
+from paraview.simple import *
+# create a new glyph
+glyph = Glyph(registrationName='Glyph1', Input=streamTracer, GlyphType='Cone')
+glyph.OrientationArray = ['POINTS', 'V']
+glyph.ScaleArray = ['POINTS', 'V']
+glyph.ScaleFactor = 0.05
+""",
+    ),
+    PythonCode(
+        name="code_to_tube",
+        code="""
+from paraview.simple import *
+# create a new tube
+tube = Tube(registrationName='Tube1', Input=streamTracer)
+tube.Radius = 0.075
+""",
+    ),
+    PythonCode(
+        name="code_to_color_tube_glyphs_Temp_variable",
+        code="""
+from paraview.simple import *
+# color tubes and glyphs by Temp variable
+ColorBy(tubeDisplay, ('POINTS', 'Temp'))
+ColorBy(glyphDisplay, ('POINTS', 'Temp'))
+tubeDisplay.RescaleTransferFunctionToDataRange(True)
+glyphDisplay.RescaleTransferFunctionToDataRange(True)
+""",
+    ),
 ]
 
 GENERATED_SOURCES: list[GeneratedPrompts] = [
@@ -149,5 +192,106 @@ Requirements:
 - Orient the view to look from the +X direction.
 - Save a screenshot of the view at 1920 x 1080 pixels resolution to '<output_path>'.
 """,
-    )
+    ),
+    GeneratedPrompts(
+        name="ml_iso",
+        input_prompt="""
+I would like to use ParaView to visualize a dataset.
+Please generate a ParaView Python script for the following operations.
+Read in the file named '<input_path>'.
+Trace streamlines of the V data array seeded from a default point cloud.
+Render the streamlines with tubes.
+Add cone glyphs to the streamlines.
+Color the streamlines and glyphs by the Temp data array.
+View the result in the +X direction.
+Save a screenshot of the result in the filename '<output_path>'.
+The rendered view and saved screenshot should be 1920 x 1080 pixels.
+""",
+        generated_prompt="""
+Generate a Python script using ParaView for performing visualization tasks based on the provided steps.
+This script uses ParaView to visualize streamlines of the V data array from the '<input_path>' file.
+Operations include reading the file, tracing streamlines, rendering with tubes, adding cone glyphs,
+coloring by the Temp data array, and viewing from the +X direction.
+
+Requirements step-by-step:
+- Read the file '<input_path>'.
+- Trace streamlines of the V data array seeded from a default point cloud.
+- Render the streamlines with tubes for better visibility.
+- Add cone glyphs to the streamlines to indicate direction.
+- Color both the streamlines and glyphs using the Temp data array.
+- Orient the view to look from the +X direction.
+- Save a screenshot of the view at 1920 x 1080 pixels resolution to '<ouput_path>'.
+""",
+    ),
+    GeneratedPrompts(
+        name="ml_slice_iso",
+        input_prompt="""
+I would like to use ParaView to visualize a dataset.
+Please generate a ParaView Python script for the following operations.
+Read in the file named '<input_path>'.
+Trace streamlines of the V data array seeded from a default point cloud.
+Render the streamlines with tubes.
+Add cone glyphs to the streamlines.
+Color the streamlines and glyphs by the Temp data array.
+View the result in the +X direction.
+Save a screenshot of the result in the filename '<output_path>'.
+The rendered view and saved screenshot should be 1920 x 1080 pixels.
+""",
+        generated_prompt="""
+This script uses ParaView to visualize streamlines of the V data array from the '<input_path>' file.
+Operations include reading the file, tracing streamlines, rendering with tubes, adding cone glyphs,
+coloring by the Temp data array, and viewing from the +X direction.
+
+Requirements:
+- Read the file '<input_file>'.
+- Trace streamlines of the V data array seeded from a default point cloud.
+- Render the streamlines with tubes for better visibility.
+- Add cone glyphs to the streamlines to indicate direction.
+- Color both the streamlines and glyphs using the Temp data array.
+- Orient the view to look from the +X direction.
+- Save a screenshot of the view at 1920 x 1080 pixels resolution to '<output_file>'.
+""",
+    ),
+    GeneratedPrompts(
+        name="points_surf_clip",
+        input_prompt="""
+I would like to use ParaView to visualize a dataset.
+Please generate a ParaView Python script for the following operations.
+Read in the file named '<input_path>'.
+Generate an 3d Delaunay triangulation of the dataset.
+Clip the data with a y-z plane at x=0, keeping the -x half of the data and removing the +x half.
+Render the image as a wireframe. Save a screenshot of the result in the filename '<output_path>'.
+The rendered view and saved screenshot should be 1920 x 1080 pixels.
+""",
+        generated_prompt="",
+    ),
+    GeneratedPrompts(
+        name="stream_glyph",
+        input_prompt="""
+I would like to use ParaView to visualize a dataset.
+Please generate a ParaView Python script for the following operations.
+Read in the file named '<input_path>'.
+Trace streamlines of the V data array seeded from a default point cloud.
+Render the streamlines with tubes.
+Add cone glyphs to the streamlines.
+Color the streamlines and glyphs by the Temp data array.
+View the result in the +X direction.
+Save a screenshot of the result in the filename '<output_path>'.
+The rendered view and saved screenshot should be 1920 x 1080 pixels.
+""",
+        generated_prompt="""
+This script uses ParaView to visualize streamlines of the V data array from the '<input_path>' file.
+Operations include reading the file, tracing streamlines, rendering with tubes, adding cone glyphs,
+coloring by the Temp data array, and viewing from the +X direction.
+
+Requirements:
+- Read the file '<input_path>'.
+- Trace streamlines of the V data array seeded from a default point cloud.
+- Render the streamlines with tubes for better visibility.
+- Add cone glyphs to the streamlines to indicate direction.
+- Color both the streamlines and glyphs using the Temp data array.
+- Orient the view to look from the +X direction.
+- Save a screenshot of the view at 1920 x 1080 pixels resolution to '<output_path>'.
+""",
+    ),
 ]
