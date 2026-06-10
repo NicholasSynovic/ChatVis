@@ -1,7 +1,4 @@
-import pandas as pd
 from pydantic import BaseModel
-
-from chatvis.utils import pydantic_to_dataframe
 
 
 class CodeExample(BaseModel):
@@ -173,5 +170,3 @@ glyphDisplay.RescaleTransferFunctionToDataRange(True)
 """,
     ),
 ]
-
-CODE_EXAMPLES_DF: pd.DataFrame = pydantic_to_dataframe(models=CODE_EXAMPLES)
