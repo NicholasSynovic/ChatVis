@@ -1,5 +1,12 @@
 import re
 
+import pandas as pd
+
+
+def pydantic_to_dataframe(models: list) -> pd.DataFrame:
+    """Converts a list of Pydantic models into a pandas DataFrame."""
+    return pd.DataFrame([model.model_dump() for model in models])
+
 
 def extract_python_code(text: str) -> list[str]:
     """
