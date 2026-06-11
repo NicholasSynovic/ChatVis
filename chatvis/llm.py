@@ -11,17 +11,17 @@ from chatvis.documents.prompt_generation import PromptGenerationPrompt
 class OpenAIModel:
     def __init__(
         self,
-        api_key: str,
-        endpoint: str = "https://argo.apps.inside.anl.gov/v1",
-        model_name: str = "gpt4o",
-        temperature: float = 42.0,
+        anl_username: str,
+        model_name: str,
+        endpoint: str = "https://apps.inside.anl.gov/argoapi/v1",
+        seed: int = 42,
     ) -> None:
         self.endpoint: str = endpoint
-        self.temperature: float = temperature
+        self.seed: int = seed
         self.model_name: str = model_name.lower()
         self.client: Client = Client(
             base_url=self.endpoint,
-            api_key=api_key,
+            api_key=anl_username,
         )
 
     def chat(
@@ -31,7 +31,7 @@ class OpenAIModel:
     ) -> ChatCompletion:
         return self.client.chat.completions.create(
             model=self.model_name,
-            temperature=self.temperature,
+            seed=self.seed,
             n=1,
             messages=[
                 {"role": "system", "content": system_prompt},
