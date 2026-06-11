@@ -1,5 +1,7 @@
 import logging
+import sys
 from argparse import ArgumentParser, Namespace
+from logging import Logger
 from pathlib import Path
 
 from openai.types.chat import ChatCompletion
@@ -10,7 +12,7 @@ from chatvis.llm import OpenAIModel, parse_response
 from chatvis.logger import configure_logging
 
 MODELS: list[str] = ["gpt4o"]
-LOG_LEVELS: list[str] = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+LOG_LEVELS: list[str] = ["debug", "info", "warning", "error", "critical"]
 SCENARIOS: list[str] = [
     "ml-dvr",
     "ml-iso",
@@ -32,6 +34,12 @@ def cli_parser() -> Namespace:
         choices=SCENARIOS,
         default=SCENARIOS[0],
         help="ChatVis paper scenario to execute (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--data-filepath",
+        type=lambda x: Path(x).absolute(),
+        required=True,
+        help="Path to data file to evaluate",
     )
     parser.add_argument(
         "--model",
@@ -60,6 +68,40 @@ def cli_parser() -> Namespace:
     return parser.parse_args()
 
 
+def setup_logger(log_to_file: bool, log_level: str) -> Logger:
+    # Configure logger
+    log_path: Path | None = configure_logging(
+        log_to_file=log_to_file,
+        level=logging.getLevelNamesMapping()[log_level.upper()],
+    )
+
+    # Get the application logger
+    logger: Logger = logging.getLogger("chatvis")
+
+    # Log to file
+    if log_path is not None:
+        logger.info("Logging to %s", log_path)
+
+    # Return application logger
+    return logger
+
+
+def check_data(data_filepath: Path, scenario: str) -> bool:
+    # Check ML scenarios
+    if (scenario[0:2] == "ml") and (data_filepath.name == "ml-100.vtk"):
+        return True
+
+    # Check Can scenarios
+    if (scenario.__contains__("points")) and (data_filepath.name == "can_points.ex2"):
+        return True
+
+    # Check Disk scenarios
+    if (scenario.__contains__("stream")) and (data_filepath.name == "disk.ex2"):
+        return True
+
+    return False
+
+
 def connect_to_argo(
     anl_username: str,
     model_name: str = "gpt4o",
@@ -86,15 +128,33 @@ def main() -> None:
     cli_args: Namespace = cli_parser()
 
     # Setup logger
-    log_path: Path | None = configure_logging(
+    logger: logging.Logger = setup_logger(
         log_to_file=cli_args.log_file,
-        level=logging.getLevelNamesMapping()[cli_args.log_level],
+        log_level=cli_args.log_level,
     )
-    if log_path is not None:
-        logging.getLogger("chatvis").info("logging to %s", log_path)
+
+    # Logg command line args
+    logger.debug("Command line args:  %s", cli_args.__dict__)
+
+    # Check if command line args are compatible with one another
+    if (
+        check_data(
+            data_filepath=cli_args.data_filepath,
+            scenario=cli_args.scenario,
+        )
+        == False
+    ):
+        logger.error("Data file not compatible with this scenario")
+        sys.exit(1)
+    logger.info(
+        "Data file and scenario compatible: %s %s",
+        cli_args.data_filepath,
+        cli_args.scenario,
+    )
 
     # Connect to Argo
     model: OpenAIModel = connect_to_argo(cli_args.username, cli_args.model)
+    logger.info("Argo handshake successful")
 
     # match cli_args.scenario:
     #     case "ml-dvr":
