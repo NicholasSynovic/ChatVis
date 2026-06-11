@@ -6,82 +6,13 @@ from pathlib import Path
 
 from openai.types.chat import ChatCompletion
 
+from chatvis import __version__
 from chatvis.documents.prompt_generation import (
     PROMPT_GENERATION_PROMPTS,
     PromptGenerationPrompt,
 )
 from chatvis.llm import OpenAIModel, parse_response, prompt_generation
 from chatvis.logger import configure_logging
-
-MODELS: list[str] = ["gpt4o"]
-LOG_LEVELS: list[str] = ["debug", "info", "warning", "error", "critical"]
-DEFAULT_LOG_LEVEL: str = "info"
-DEFAULT_ENDPOINT: str = "https://apps.inside.anl.gov/argoapi/v1"
-SCENARIOS: list[str] = [
-    "ml-dvr",
-    "ml-iso",
-    "ml-slice-iso",
-    "points-surf-clip",
-    "stream-glyph",
-]
-
-
-def cli_parser() -> Namespace:
-    parser: ArgumentParser = ArgumentParser(
-        prog="chatvis",
-        description="Automating Scientific Visualization with a Large Language Model",
-        epilog="https://doi.org/10.1109/SCW63240.2024.00014",
-    )
-
-    parser.add_argument(
-        "--scenario",
-        choices=SCENARIOS,
-        default=SCENARIOS[0],
-        help="ChatVis paper scenario to execute (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--data-filepath",
-        type=lambda x: Path(x).absolute(),
-        required=True,
-        help="Path to data file to evaluate",
-    )
-    parser.add_argument(
-        "--screenshot-path",
-        type=lambda x: Path(x).absolute(),
-        required=True,
-        help="Path where the generated ParaView screenshot should be written",
-    )
-    parser.add_argument(
-        "--model",
-        choices=MODELS,
-        default=MODELS[0],
-        help="LLM to leverage (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--username",
-        type=str,
-        required=True,
-        help="Argonne National Labs username",
-    )
-    parser.add_argument(
-        "--endpoint",
-        type=str,
-        default=DEFAULT_ENDPOINT,
-        help="LLM API endpoint URL (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--log-file",
-        action="store_true",
-        help="Also write log output to <cwd>/chatvis_<unix-seconds>.log",
-    )
-    parser.add_argument(
-        "--log-level",
-        choices=LOG_LEVELS,
-        default=DEFAULT_LOG_LEVEL,
-        help="Logging verbosity (default: %(default)s)",
-    )
-
-    return parser.parse_args()
 
 
 def setup_logger(log_to_file: bool, log_level: str) -> Logger:
