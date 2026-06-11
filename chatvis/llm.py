@@ -50,7 +50,7 @@ def prompt_generation(
         input_path=input_path,
         output_path=output_path,
         input_prompt=pgp.example_prompt.input_prompt,
-        output_prompt=pgp.example_prompt.generated_prompt,
+        generated_prompt=pgp.example_prompt.generated_prompt,
     )
 
     return openai.chat(system_prompt=pgp.system_prompt, user_prompt=user_prompt)
@@ -73,14 +73,14 @@ def code_improvement(
     shell_errors: str,
     openai: OpenAIModel,
 ) -> ChatCompletion:
-    system_prompt: str = CodeImprovementPrompt.system_prompt
-    user_prompt: str = CodeImprovementPrompt.user_prompt.substitute(
+    cip: CodeImprovementPrompt = CodeImprovementPrompt()
+    user_prompt: str = cip.user_prompt.substitute(
         errors=shell_errors,
         python_script=generated_code,
         prompt=generated_prompt,
     )
 
-    return openai.chat(system_prompt=system_prompt, user_prompt=user_prompt)
+    return openai.chat(system_prompt=cip.system_prompt, user_prompt=user_prompt)
 
 
 def parse_response(response: ChatCompletion) -> str:
