@@ -1,3 +1,4 @@
+from logging import Logger
 from pathlib import Path
 
 from openai import Client
@@ -11,17 +12,21 @@ from chatvis.documents.prompt_generation import PromptGenerationPrompt
 class OpenAIModel:
     def __init__(
         self,
-        anl_username: str,
+        logger: Logger,
+        api_key: str,
         model_name: str,
-        endpoint: str = "https://apps.inside.anl.gov/argoapi/v1",
+        endpoint: str,
         seed: int = 42,
     ) -> None:
+        # Argo authenticates by ANL username supplied via the OpenAI client's
+        # ``api_key`` parameter. The name ``api_key`` mirrors that contract.
+        self.logger: Logger = logger
         self.endpoint: str = endpoint
         self.seed: int = seed
         self.model_name: str = model_name.lower()
         self.client: Client = Client(
             base_url=self.endpoint,
-            api_key=anl_username,
+            api_key=api_key,
         )
 
     def chat(
@@ -29,6 +34,8 @@ class OpenAIModel:
         system_prompt: str,
         user_prompt: str,
     ) -> ChatCompletion:
+        self.logger.debug("LLM system_prompt: \n%s", system_prompt)
+        self.logger.debug("LLM user_prompt: \n%s", user_prompt)
         return self.client.chat.completions.create(
             model=self.model_name,
             seed=self.seed,
