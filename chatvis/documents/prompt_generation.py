@@ -1,6 +1,6 @@
 from string import Template
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from chatvis.documents.prompt_generation_examples import (
     PROMPT_GENERATION_EXAMPLES,
@@ -9,6 +9,8 @@ from chatvis.documents.prompt_generation_examples import (
 
 
 class PromptGenerationPrompt(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     system_prompt: str = """
 You are a prompt generator.
 Do not provide any other text than the prompt.

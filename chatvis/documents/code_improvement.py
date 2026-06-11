@@ -1,9 +1,11 @@
 from string import Template
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CodeImprovementPrompt(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     system_prompt: str = """
 You are a great code assistant.
 Focus on the error line.

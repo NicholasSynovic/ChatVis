@@ -85,8 +85,7 @@ renderView = CreateView('RenderView')
 renderView.ViewSize = [1920, 1080]
 """,
     ),
-    CodeExample(
-        name="code_to_render_view_direction",
+    "code_to_render_view_direction": CodeExample(
         code="""
 from paraview.simple import *
 # set render view direction

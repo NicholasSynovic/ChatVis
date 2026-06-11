@@ -1,8 +1,6 @@
-from string import Template
-
 from pydantic import BaseModel
 
-from chatvis.documents.code_examples import CODE_EXAMPLES, CodeExample
+from chatvis.documents.code_examples import CODE_EXAMPLES
 
 _PROLOGUE: str = """
     You are a code assistant.
@@ -68,7 +66,6 @@ _EPILOG_OPERATIONS: str = f"""
 
 class CodeGenerationPrompt(BaseModel):
     system_prompt: str
-    user_prompt: str = ""
 
 
 CODE_GENERATION_PROMPTS: dict[str, CodeGenerationPrompt] = {
@@ -141,7 +138,7 @@ Use the following functions:
 ```
 
 ```python
-{CODE_EXAMPLES["code_to_stream_tacer"]}
+{CODE_EXAMPLES["code_to_stream_tracer"]}
 ```
 
 {_RENDER_OPERATIONS}

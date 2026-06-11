@@ -1,5 +1,13 @@
 from argparse import ArgumentParser, Namespace
 
+from chatvis.documents.code_generation import CODE_GENERATION_PROMPTS
+from chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS
+
+SCENARIOS: list[str] = sorted(
+    set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)
+)
+MODELS: list[str] = ["gpt-4", "gpt-4-turbo", "gpt-4o"]
+
 
 def cli_parser() -> Namespace:
     parser: ArgumentParser = ArgumentParser(
@@ -10,40 +18,36 @@ def cli_parser() -> Namespace:
 
     parser.add_argument(
         "--scenario",
-        choices=[
-            "ml-dvr",
-            "ml-iso",
-            "ml-slice-iso",
-            "points-surf-clip",
-            "stream-glyph",
-        ],
+        choices=SCENARIOS,
         default="ml-dvr",
         help="ChatVis paper scenario to execute (default: %(default)s)",
     )
     parser.add_argument(
         "--model",
-        choices=["gpt4o"],
-        default="gpt4o",
+        choices=MODELS,
+        default="gpt-4o",
         help="LLM to leverage (default: %(default)s)",
     )
 
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     cli_args: Namespace = cli_parser()
 
     match cli_args.scenario:
         case "ml-dvr":
-            pass
+            raise NotImplementedError("scenario 'ml-dvr' is not yet implemented")
         case "ml-iso":
-            pass
+            raise NotImplementedError("scenario 'ml-iso' is not yet implemented")
         case "ml-slice-iso":
-            pass
+            raise NotImplementedError("scenario 'ml-slice-iso' is not yet implemented")
         case "points-surf-clip":
-            pass
+            raise NotImplementedError(
+                "scenario 'points-surf-clip' is not yet implemented"
+            )
         case "stream-glyph":
-            pass
+            raise NotImplementedError("scenario 'stream-glyph' is not yet implemented")
 
 
 if __name__ == "__main__":
