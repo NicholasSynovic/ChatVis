@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from chatvis import __version__
+from chatvis import __prog__, __version__
 
 MODELS: list[str] = ["gpt4o"]
 LOG_LEVELS: list[str] = ["debug", "info", "warning", "error", "critical"]
@@ -18,7 +18,7 @@ SCENARIOS: list[str] = [  # Todo: Conver these into an Enum
 
 class CLI:
     def __init__(self) -> None:
-        self.prog: str = "chatvis"
+        self.prog: str = __prog__
         self.description: str = (
             "Automating Scientific Visualization with a Large Language Model"
         )
