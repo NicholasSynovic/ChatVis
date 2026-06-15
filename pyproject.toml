@@ -23,3 +23,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["chatvis*"]
 exclude = ["data*", "notebooks*", "tests*"]
+
+[project.scripts]
+chatvis = "chatvis.main:main"

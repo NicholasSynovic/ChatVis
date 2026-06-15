@@ -1,3 +1,4 @@
+import shutil
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
@@ -7,6 +8,7 @@ MODELS: list[str] = ["gpt4o"]
 LOG_LEVELS: list[str] = ["debug", "info", "warning", "error", "critical"]
 DEFAULT_LOG_LEVEL: str = "info"
 DEFAULT_ENDPOINT: str = "https://apps.inside.anl.gov/argoapi/v1"
+DEFAULT_MAX_REPAIR_ATTEMPTS: int = 5
 SCENARIOS: list[str] = [  # Todo: Conver these into an Enum
     "ml-dvr",
     "ml-iso",
@@ -14,6 +16,11 @@ SCENARIOS: list[str] = [  # Todo: Conver these into an Enum
     "points-surf-clip",
     "stream-glyph",
 ]
+
+
+def _default_pvpython() -> Path | None:
+    found: str | None = shutil.which("pvpython")
+    return Path(found) if found is not None else None
 
 
 class CLI:
@@ -73,7 +80,28 @@ class CLI:
             help="LLM API endpoint URL (default: %(default)s)",
         )
 
-        # --- Group 3: Logging Options ---
+        # --- Group 3: Execution Options ---
+        execution_group = ap.add_argument_group("Execution Options")
+        execution_group.add_argument(
+            "--pvpython",
+            type=lambda x: Path(x).absolute(),
+            default=_default_pvpython(),
+            help=(
+                "Path to the pvpython executable used to run generated "
+                "ParaView scripts (default: first pvpython on PATH)"
+            ),
+        )
+        execution_group.add_argument(
+            "--max-repair-attempts",
+            type=int,
+            default=DEFAULT_MAX_REPAIR_ATTEMPTS,
+            help=(
+                "Maximum number of code-improvement iterations after the "
+                "initial code-generation attempt (default: %(default)s)"
+            ),
+        )
+
+        # --- Group 4: Logging Options ---
         logging_group = ap.add_argument_group("Logging Options")
         logging_group.add_argument(
             "--log-file",
@@ -87,7 +115,7 @@ class CLI:
             help="Logging verbosity (default: %(default)s)",
         )
 
-        # --- Group 4: Global Options ---
+        # --- Group 5: Global Options ---
         # Note: Using a custom group for version ensures it isn't lost
         # under the default "options" catch-all block.
         global_group = ap.add_argument_group("Global Options")
