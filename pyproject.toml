@@ -6,8 +6,6 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "openai>=2.41.0",
-    "pandas>=3.0.3",
-    "pydantic>=2.13.4",
 ]
 
 [dependency-groups]
@@ -26,3 +24,7 @@ exclude = ["data*", "notebooks*", "tests*"]
 
 [project.scripts]
 chatvis = "chatvis.main:main"
+
+[tool.isort]
+profile = "black"
+line_length = 88
