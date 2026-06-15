@@ -32,11 +32,11 @@ from chatvis.v1.prompts.prompt_improvement import PromptImprovement
 # covering ML_DVR / ML_ISO / ML_SLICE_ISO / STREAM_GLYPH, and the
 # points-surf-clip family), so this collapses to a binary toggle.
 _FEW_SHOT_KEY_BY_SCENARIO: dict[str, str] = {
-    "ml-dvr": "POINTS_SURF_CLIP",
-    "ml-iso": "POINTS_SURF_CLIP",
-    "ml-slice-iso": "POINTS_SURF_CLIP",
-    "stream-glyph": "POINTS_SURF_CLIP",
-    "points-surf-clip": "STREAM_GLYPH",
+    "ml-dvr": "STREAM_GLYPH",
+    "ml-iso": "STREAM_GLYPH",
+    "ml-slice-iso": "STREAM_GLYPH",
+    "stream-glyph": "STREAM_GLYPH",
+    "points-surf-clip": "POINTS_SURF_CLIP",
 }
 
 # Defaults chosen for reproducibility. ``seed`` is best-effort per the
