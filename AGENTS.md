@@ -5,9 +5,9 @@ Research artifact for the ChatVis paper (LLM-driven ParaView script generation).
 ## Layout
 
 - `chatvis/` — installable package (Python 3.14). Real code now, no longer a stub. See "Package state" below.
-  - `main.py`, `cli.py`, `llm.py`, `utils.py`, `logger.py`
-  - `chatvis/documents/` — Pydantic-modelled prompt/code sources (`code_examples.py`, `code_generation.py`, `code_improvement.py`, `prompt_generation.py`, `prompt_generation_examples.py`).
-  - `chatvis/v1/` — earlier refactor attempt. **Untracked**; superseded by `chatvis/documents/`. Do not edit or import unless asked.
+    - `main.py`, `cli.py`, `llm.py`, `utils.py`, `logger.py`
+    - `chatvis/documents/` — Pydantic-modelled prompt/code sources (`code_examples.py`, `code_generation.py`, `code_improvement.py`, `prompt_generation.py`, `prompt_generation_examples.py`).
+    - `chatvis/v1/` — earlier refactor attempt. **Untracked**; superseded by `chatvis/documents/`. Do not edit or import unless asked.
 - `notebooks/` — the five working scenario notebooks: `ml-dvr`, `ml-iso`, `ml-slice-iso`, `points-surf-clip`, `stream-glyph`. ~90% near-duplicate scaffolds; duplication is **intentional for paper reproducibility** — do not refactor into a shared module without asking.
 - `data/` — **flat layout** (was previously nested under `benchmark/` / `generated_data/`; those subdirs are gone). Contains `ml-100.vtk`, `disk.ex2`, `can_points.ex2`. Notebook paths still point at macOS author paths, not `data/` — edit them when running locally.
 - `dist/`, `chatvis.egg-info/` — build artifacts; safe to ignore / not commit.
@@ -18,8 +18,8 @@ Research artifact for the ChatVis paper (LLM-driven ParaView script generation).
 - `pyproject.toml` requires `python>=3.14`; `.python-version` pins `3.14`. `.venv/` at repo root is the working env.
 - **Version mismatch to know:** `.pre-commit-config.yaml` sets `default_language_version: python: python3.13`. Pre-commit hooks run under 3.13 even though the project targets 3.14. Do not "fix" without confirming.
 - `Makefile` targets:
-  - `make create-dev` → `pre-commit install && pre-commit autoupdate && rm -rf env && uv sync`
-  - `make build` → `git tag | … | tail -n 1 | xargs -I % uv version %`, then `uv build`, then `uv pip install dist/*.tar.gz`. **There are currently no git tags**, so `make build` will pass an empty version to `uv version` and fail. Create a tag first or skip `make build`.
+    - `make create-dev` → `pre-commit install && pre-commit autoupdate && rm -rf env && uv sync`
+    - `make build` → `git tag | … | tail -n 1 | xargs -I % uv version %`, then `uv build`, then `uv pip install dist/*.tar.gz`. **There are currently no git tags**, so `make build` will pass an empty version to `uv version` and fail. Create a tag first or skip `make build`.
 - Dependencies: `openai>=2.41`, `pandas>=3.0.3`, `pydantic>=2.13.4`. Dev: `jupyter>=1.1.1`, `pytest>=9.0.3`.
 - **`pytest` is a declared dev dep, but there is no `tests/` directory and no test files anywhere.** Don't assume a test suite exists.
 - **No CI workflows, no `[tool.ruff]` config** (ruff runs on defaults via pre-commit).
@@ -33,15 +33,15 @@ The package targets **Argonne's Argo API**, an OpenAI-compatible endpoint (`DEFA
 - Entry point: `python -m chatvis.main --scenario <s> --data-filepath <p> --screenshot-path <p> --username <anl-user>`. `--model` is currently restricted to `["gpt4o"]` (see `MODELS` in `cli.py`).
 - Current flow in `main.py:main` does: parse CLI → configure logging → validate that data file matches scenario (`check_data`) → handshake to Argo (`connect_to_argo`) → run **prompt generation only** (`generate_improved_prompt`). Code generation and the code-improvement loop are implemented in `chatvis/llm.py` (`code_generation`, `code_improvement`) but **not yet called from `main`**.
 - **Known bugs / unfinished spots to be aware of (do not assume these are "yours to fix" — ask first):**
-  - `chatvis/main.py:113` calls `cli_parser()`, which does not exist and is not imported. `chatvis/cli.py` exposes a `CLI` class with a `parser()` method instead. **The CLI does not run as-is**; this is the next thing to wire up.
-  - `chatvis/documents/code_improvement.py:29` mixes templating styles: the surrounding template is `string.Template` (uses `${...}`), but `{prompt}` is written with curly braces. `Template.substitute` will leave it verbatim. Likely intended to be `${prompt}`.
-  - `chatvis/documents/prompt_generation_examples.py` for `ml-slice-iso` uses `<input_file>` / `<output_file>` (lines 84, 90); the rest of the codebase uses `<input_path>` / `<output_path>`. Likely a typo.
-  - `PROMPT_GENERATION_EXAMPLES["points-surf-clip"].generated_prompt` is `""`, and `chatvis/main.py:94` raises `ValueError` when that field is empty. The `points-surf-clip` scenario therefore fails fast under the current code path until the example is filled in.
+    - `chatvis/main.py:113` calls `cli_parser()`, which does not exist and is not imported. `chatvis/cli.py` exposes a `CLI` class with a `parser()` method instead. **The CLI does not run as-is**; this is the next thing to wire up.
+    - `chatvis/documents/code_improvement.py:29` mixes templating styles: the surrounding template is `string.Template` (uses `${...}`), but `{prompt}` is written with curly braces. `Template.substitute` will leave it verbatim. Likely intended to be `${prompt}`.
+    - `chatvis/documents/prompt_generation_examples.py` for `ml-slice-iso` uses `<input_file>` / `<output_file>` (lines 84, 90); the rest of the codebase uses `<input_path>` / `<output_path>`. Likely a typo.
+    - `PROMPT_GENERATION_EXAMPLES["points-surf-clip"].generated_prompt` is `""`, and `chatvis/main.py:94` raises `ValueError` when that field is empty. The `points-surf-clip` scenario therefore fails fast under the current code path until the example is filled in.
 - Conventions worth following when extending:
-  - All sources are Pydantic `BaseModel`s in `chatvis/documents/`.
-  - Code snippets in `CODE_EXAMPLES` use **angle-bracket sentinels** (`<input_path>`, `<output_path>`), not `str.format` fields. They are intended to be string-substituted by the LLM, not by Python.
-  - Prompt user templates use `string.Template` with `$name` / `${name}` (see `chatvis/documents/prompt_generation.py`).
-  - Logging: every submodule should use `logging.getLogger(__name__)`; `chatvis/logger.py` configures the `chatvis` root logger and disables propagation.
+    - All sources are Pydantic `BaseModel`s in `chatvis/documents/`.
+    - Code snippets in `CODE_EXAMPLES` use **angle-bracket sentinels** (`<input_path>`, `<output_path>`), not `str.format` fields. They are intended to be string-substituted by the LLM, not by Python.
+    - Prompt user templates use `string.Template` with `$name` / `${name}` (see `chatvis/documents/prompt_generation.py`).
+    - Logging: every submodule should use `logging.getLogger(__name__)`; `chatvis/logger.py` configures the `chatvis` root logger and disables propagation.
 
 ## Notebook gotchas (all five files, still present)
 
@@ -49,7 +49,7 @@ The package targets **Argonne's Argo API**, an OpenAI-compatible endpoint (`DEFA
 - **macOS-only `pvpython` path** prepended to `PATH`: `"/Applications/ParaView-5.12.0.app/Contents/bin:$PATH"`. No-op on Linux; ensure `pvpython` (ParaView 5.12) is otherwise on `PATH`.
 - **`OpenAI(api_key="")`** in the notebooks — no env-var loading. Paste key directly; do not commit. (The package code path uses Argo and `--username`, not this.)
 - **Dead `import ollama`** in `ml-dvr.ipynb`, `ml-iso.ipynb`, `ml-slice-iso.ipynb` (never called). Notebook will `ImportError` without `pip install ollama` even though removing the import would also work. `ollama` is NOT in `pyproject.toml` deps.
-- **`extract_python_code` early-return bug in the notebooks**: `return filename` sits inside the `for` loop, so only the first ```python``` block from the LLM response is ever saved. Present in all five. The package version in `chatvis/utils.py` has a different, correct implementation that returns `list[str]` — do not assume parity.
+- **`extract_python_code` early-return bug in the notebooks**: `return filename` sits inside the `for` loop, so only the first `python` block from the LLM response is ever saved. Present in all five. The package version in `chatvis/utils.py` has a different, correct implementation that returns `list[str]` — do not assume parity.
 
 ## Per-notebook behavioral differences (verify before editing — easy to get wrong)
 

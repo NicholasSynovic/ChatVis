@@ -19,13 +19,15 @@ I'll review the documents directory and main.py to construct a plan for updating
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py</path>
 <type>file</type>
@@ -39,13 +41,15 @@ I'll review the documents directory and main.py to construct a plan for updating
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py</path>
 <type>file</type>
@@ -214,14 +218,16 @@ I'll review the documents directory and main.py to construct a plan for updating
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py</path>
 <type>file</type>
 <content>
@@ -383,19 +389,21 @@ I'll review the documents directory and main.py to construct a plan for updating
 
 (End of file - total 155 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py</path>
 <type>file</type>
 <content>
@@ -432,18 +440,20 @@ I'll review the documents directory and main.py to construct a plan for updating
 
 (End of file - total 30 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py</path>
 <type>file</type>
@@ -589,13 +599,15 @@ I'll review the documents directory and main.py to construct a plan for updating
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py</path>
 <type>file</type>
@@ -758,6 +770,7 @@ I'll review the documents directory and main.py to construct a plan for updating
 I've reviewed the documents directory. Here's what I found:
 
 **Scenarios in documents** (consistent across all 4 keyed dicts):
+
 - `ml-dvr`
 - `ml-iso`
 - `ml-slice-iso`
@@ -765,11 +778,13 @@ I've reviewed the documents directory. Here's what I found:
 - `stream-glyph`
 
 **Current `main.py` state**:
+
 - Already lists all 5 scenarios in `--scenario` choices
 - Already has `match` arms for all 5 scenarios (all `pass`)
 - `--model` only has `gpt4o` as a choice
 
 **Observations on the docs (not in scope, but flagged)**:
+
 - `code_examples.py` has bugs that will affect any future runtime use (e.g., a `CodeExample(name=..., code=...)` entry that's a dict value with no key, and a reference to `CODE_EXAMPLES["code_to_stream_tacer"]` — typo of "tracer" — in `code_generation.py`). Not part of this task, but they exist.
 - `LLM_PROMPTS` referenced in AGENTS.md does not appear under `documents/`; only `PROMPT_GENERATION_PROMPTS`, `CODE_GENERATION_PROMPTS`, `CODE_EXAMPLES`, etc.
 
@@ -786,30 +801,35 @@ The current `main.py` **already covers all five scenarios** in both `choices` an
 I recommend **Option 1 + a light dispatch table**, scoped narrowly to parser-and-wiring (no LLM/runtime code), since the package is explicitly WIP:
 
 ### Step 1 — Derive scenario list from documents
+
 - In `chatvis/main.py`, import `CODE_GENERATION_PROMPTS` from `chatvis.documents.code_generation` and `PROMPT_GENERATION_PROMPTS` from `chatvis.documents.prompt_generation`.
 - Compute `SCENARIOS = sorted(set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS))` so the CLI only advertises scenarios that have both halves wired.
 - Pass `choices=SCENARIOS` and `default=SCENARIOS[0]` (or keep `"ml-dvr"` explicitly — open question below).
 
 ### Step 2 — Keep `--model` as-is
+
 - Only `gpt4o` is documented anywhere in `chatvis/`; leave choices unchanged. (The notebooks use `gpt-4`, `gpt-4-turbo`, `gpt-4o`; expanding this is a separate decision tied to `llm.py`, which is fully commented out.)
 
 ### Step 3 — Replace empty `match` with a thin dispatch
+
 - Replace the `match`/`case pass` block with a single lookup that retrieves both prompt objects for the chosen scenario and prints a "not yet implemented" notice (or raises `NotImplementedError`) — preserves the no-op behavior the AGENTS.md calls out, but stops the silent return and makes it obvious where the runner hooks in later.
 - Alternative: keep `match` but each arm just fetches `CODE_GENERATION_PROMPTS[name]` / `PROMPT_GENERATION_PROMPTS[name]` and hands off to a `_run_<scenario>` stub. Heavier; only worth it if you want per-scenario divergence to live in `main.py`.
 
 ### Step 4 — Type hints + small cleanup
+
 - Type `SCENARIOS: list[str]`, keep the existing `Namespace` / `ArgumentParser` annotations style.
 - No changes to `Makefile`, `pyproject.toml`, or the documents themselves.
 
 ### Out of scope (flagging only)
+
 - The bugs in `chatvis/documents/code_examples.py` and the `code_to_stream_tacer` typo in `code_generation.py` — fixing these will make the imports above raise. **This matters**: if I import `CODE_GENERATION_PROMPTS` at module load time, the typo and the malformed dict entry in `code_examples.py` will crash `chatvis/main.py` on startup. See questions below.
 
 ## Questions before I implement
 
-1. **Document import will crash today.** `chatvis/documents/code_examples.py` has a `CodeExample(name=..., code=...)` entry sitting as a dict *value* with no key (line 88), and `code_generation.py` references `CODE_EXAMPLES["code_to_stream_tacer"]` (typo). Importing `CODE_GENERATION_PROMPTS` from `main.py` will fail immediately. Do you want me to:
-   - (a) Fix those bugs as part of this task (smallest viable fix: drop/repair the malformed entry, fix the typo), or
-   - (b) Keep `main.py` decoupled — hard-code the scenario list as today and skip importing from `documents/`, or
-   - (c) Wrap the imports in `try/except` and fall back to a hard-coded list?
+1. **Document import will crash today.** `chatvis/documents/code_examples.py` has a `CodeExample(name=..., code=...)` entry sitting as a dict _value_ with no key (line 88), and `code_generation.py` references `CODE_EXAMPLES["code_to_stream_tacer"]` (typo). Importing `CODE_GENERATION_PROMPTS` from `main.py` will fail immediately. Do you want me to:
+    - (a) Fix those bugs as part of this task (smallest viable fix: drop/repair the malformed entry, fix the typo), or
+    - (b) Keep `main.py` decoupled — hard-code the scenario list as today and skip importing from `documents/`, or
+    - (c) Wrap the imports in `try/except` and fall back to a hard-coded list?
 
 2. **Dispatch behavior for now.** Should the `match` arms (a) raise `NotImplementedError`, (b) `print` a stub message and exit 0, or (c) stay as `pass` (silent no-op, matching current behavior)?
 
@@ -877,16 +897,18 @@ renderView.ResetCamera()
 ### Question before proceeding
 
 **Q1.** How do you want to handle the still-broken `code_examples.py` entry (lines 88–96)?
-   - **(a)** I fix it as part of this task (convert to `"code_to_render_view_direction": CodeExample(code=...)`). Smallest viable change to make the import work. **Recommended.**
-   - **(b)** You fix it now and I re-read before editing `main.py`.
-   - **(c)** I leave it alone and decouple `main.py` from `documents/` (hard-code the scenario list). This works today but defeats the point of deriving scenarios from the documents.
+
+- **(a)** I fix it as part of this task (convert to `"code_to_render_view_direction": CodeExample(code=...)`). Smallest viable change to make the import work. **Recommended.**
+- **(b)** You fix it now and I re-read before editing `main.py`.
+- **(c)** I leave it alone and decouple `main.py` from `documents/` (hard-code the scenario list). This works today but defeats the point of deriving scenarios from the documents.
 
 **Q2.** For `--model`, you said "include all of these models" but didn't enumerate them. Pulling from the notebooks (per AGENTS.md), the candidates are:
-   - `gpt-4`
-   - `gpt-4-turbo`
-   - `gpt-4o`
 
-   Use exactly those three (hyphenated, matching the OpenAI API IDs), and change the existing `gpt4o` default to `gpt-4o`? Or do you want a different set / different spelling (e.g., keep `gpt4o` as an alias)?
+- `gpt-4`
+- `gpt-4-turbo`
+- `gpt-4o`
+
+Use exactly those three (hyphenated, matching the OpenAI API IDs), and change the existing `gpt4o` default to `gpt-4o`? Or do you want a different set / different spelling (e.g., keep `gpt4o` as an alias)?
 
 ---
 
@@ -895,34 +917,34 @@ renderView.ResetCamera()
 **File touched:** `chatvis/main.py` (primary), `chatvis/documents/code_examples.py` (one-line structural fix only).
 
 1. **Fix `code_examples.py` lines 88–96**
-   - Replace the unkeyed `CodeExample(name=..., code=...)` with `"code_to_render_view_direction": CodeExample(code=...)`. Identical snippet body; only the dict-entry shape changes. No other edits to that file.
+    - Replace the unkeyed `CodeExample(name=..., code=...)` with `"code_to_render_view_direction": CodeExample(code=...)`. Identical snippet body; only the dict-entry shape changes. No other edits to that file.
 
 2. **Rewrite `chatvis/main.py`**
-   - Add imports:
-     ```python
-     from chatvis.documents.code_generation import CODE_GENERATION_PROMPTS
-     from chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS
-     ```
-   - Derive scenarios:
-     ```python
-     SCENARIOS: list[str] = sorted(
-         set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)
-     )
-     ```
-     With current docs this yields `["ml-dvr", "ml-iso", "ml-slice-iso", "points-surf-clip", "stream-glyph"]`.
-   - `--scenario`: `choices=SCENARIOS`, `default="ml-dvr"` (keep current default explicitly; falls within `SCENARIOS`).
-   - `--model`: `choices=["gpt-4", "gpt-4-turbo", "gpt-4o"]`, `default="gpt-4o"`.
-   - Replace the `match`/`case pass` block with `match` arms that each `raise NotImplementedError(f"scenario '{name}' is not yet implemented")` — one arm per scenario, preserving the explicit enumeration style currently used (rather than a single catch-all), so future per-scenario wiring has an obvious home.
+    - Add imports:
+        ```python
+        from chatvis.documents.code_generation import CODE_GENERATION_PROMPTS
+        from chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS
+        ```
+    - Derive scenarios:
+        ```python
+        SCENARIOS: list[str] = sorted(
+            set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)
+        )
+        ```
+        With current docs this yields `["ml-dvr", "ml-iso", "ml-slice-iso", "points-surf-clip", "stream-glyph"]`.
+    - `--scenario`: `choices=SCENARIOS`, `default="ml-dvr"` (keep current default explicitly; falls within `SCENARIOS`).
+    - `--model`: `choices=["gpt-4", "gpt-4-turbo", "gpt-4o"]`, `default="gpt-4o"`.
+    - Replace the `match`/`case pass` block with `match` arms that each `raise NotImplementedError(f"scenario '{name}' is not yet implemented")` — one arm per scenario, preserving the explicit enumeration style currently used (rather than a single catch-all), so future per-scenario wiring has an obvious home.
 
 3. **No changes** to:
-   - `chatvis/documents/code_generation.py` (the unused `Template` import and the f-string-stringifies-model bug are separate concerns; flag-only).
-   - `chatvis/documents/prompt_generation.py`, `prompt_generation_examples.py`, `code_improvement.py`.
-   - `chatvis/llm.py`, `chatvis/utils.py`, `pyproject.toml`, `Makefile`, notebooks, AGENTS.md.
+    - `chatvis/documents/code_generation.py` (the unused `Template` import and the f-string-stringifies-model bug are separate concerns; flag-only).
+    - `chatvis/documents/prompt_generation.py`, `prompt_generation_examples.py`, `code_improvement.py`.
+    - `chatvis/llm.py`, `chatvis/utils.py`, `pyproject.toml`, `Makefile`, notebooks, AGENTS.md.
 
 4. **Verification (read-only after edit):**
-   - `uv run python -c "from chatvis.main import cli_parser; cli_parser()" --help` — sanity-check the parser builds and the help text lists all five scenarios and three models.
-   - `uv run python -m chatvis.main --scenario ml-dvr` — should raise `NotImplementedError` with a clear message.
-   - Optionally `pre-commit run --files chatvis/main.py chatvis/documents/code_examples.py` to confirm lint passes on the touched files.
+    - `uv run python -c "from chatvis.main import cli_parser; cli_parser()" --help` — sanity-check the parser builds and the help text lists all five scenarios and three models.
+    - `uv run python -m chatvis.main --scenario ml-dvr` — should raise `NotImplementedError` with a clear message.
+    - Optionally `pre-commit run --files chatvis/main.py chatvis/documents/code_examples.py` to confirm lint passes on the touched files.
 
 ### Sketch of the resulting `main.py`
 
@@ -997,13 +1019,15 @@ Implement this plan
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py</path>
 <type>file</type>
@@ -1177,14 +1201,16 @@ Good, `code_examples.py` is fixed. Now I'll write `main.py`.
 **Tool: write**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
-  "content": "from argparse import ArgumentParser, Namespace\n\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS\n\nSCENARIOS: list[str] = sorted(\n    set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)\n)\nMODELS: list[str] = [\"gpt-4\", \"gpt-4-turbo\", \"gpt-4o\"]\n\n\ndef cli_parser() -> Namespace:\n    parser: ArgumentParser = ArgumentParser(\n        prog=\"chatvis\",\n        description=\"Automating Scientific Visualization with a Large Language Model\",\n        epilog=\"https://doi.org/10.1109/SCW63240.2024.00014\",\n    )\n\n    parser.add_argument(\n        \"--scenario\",\n        choices=SCENARIOS,\n        default=\"ml-dvr\",\n        help=\"ChatVis paper scenario to execute (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--model\",\n        choices=MODELS,\n        default=\"gpt-4o\",\n        help=\"LLM to leverage (default: %(default)s)\",\n    )\n\n    return parser.parse_args()\n\n\ndef main() -> None:\n    cli_args: Namespace = cli_parser()\n\n    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\n                \"scenario 'ml-dvr' is not yet implemented\"\n            )\n        case \"ml-iso\":\n            raise NotImplementedError(\n                \"scenario 'ml-iso' is not yet implemented\"\n            )\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\n                \"scenario 'ml-slice-iso' is not yet implemented\"\n            )\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\n                \"scenario 'stream-glyph' is not yet implemented\"\n            )\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
+    "content": "from argparse import ArgumentParser, Namespace\n\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS\n\nSCENARIOS: list[str] = sorted(\n    set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)\n)\nMODELS: list[str] = [\"gpt-4\", \"gpt-4-turbo\", \"gpt-4o\"]\n\n\ndef cli_parser() -> Namespace:\n    parser: ArgumentParser = ArgumentParser(\n        prog=\"chatvis\",\n        description=\"Automating Scientific Visualization with a Large Language Model\",\n        epilog=\"https://doi.org/10.1109/SCW63240.2024.00014\",\n    )\n\n    parser.add_argument(\n        \"--scenario\",\n        choices=SCENARIOS,\n        default=\"ml-dvr\",\n        help=\"ChatVis paper scenario to execute (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--model\",\n        choices=MODELS,\n        default=\"gpt-4o\",\n        help=\"LLM to leverage (default: %(default)s)\",\n    )\n\n    return parser.parse_args()\n\n\ndef main() -> None:\n    cli_args: Namespace = cli_parser()\n\n    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\n                \"scenario 'ml-dvr' is not yet implemented\"\n            )\n        case \"ml-iso\":\n            raise NotImplementedError(\n                \"scenario 'ml-iso' is not yet implemented\"\n            )\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\n                \"scenario 'ml-slice-iso' is not yet implemented\"\n            )\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\n                \"scenario 'stream-glyph' is not yet implemented\"\n            )\n\n\nif __name__ == \"__main__\":\n    main()\n"
 }
 ```
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -1198,15 +1224,17 @@ Now verify the parser builds and behaves as expected.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --help",
-  "description": "Show CLI help output",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --help",
+    "description": "Show CLI help output",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 Traceback (most recent call last):
   File "<frozen runpy>", line 203, in _run_module_as_main
@@ -1272,15 +1300,17 @@ For further information visit https://errors.pydantic.dev/2.13/u/schema-for-unkn
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --scenario ml-dvr --model gpt-4o; echo \"exit=$?\"",
-  "description": "Run ml-dvr to confirm NotImplementedError",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --scenario ml-dvr --model gpt-4o; echo \"exit=$?\"",
+    "description": "Run ml-dvr to confirm NotImplementedError",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 Traceback (most recent call last):
   File "<frozen runpy>", line 203, in _run_module_as_main
@@ -1357,15 +1387,17 @@ Given the user's directive ("Implement this plan") and that the plan explicitly 
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py",
-  "oldString": "from string import Template\n\nfrom pydantic import BaseModel\n\nfrom chatvis.documents.prompt_generation_examples import (\n    PROMPT_GENERATION_EXAMPLES,\n    PromptGenerationExample,\n)\n\n\nclass PromptGenerationPrompt(BaseModel):\n    system_prompt: str = \"\"\"\nYou are a prompt generator.\nDo not provide any other text than the prompt.\n\"\"\"\n    user_prompt: Template\n    example_prompt: PromptGenerationExample",
-  "newString": "from string import Template\n\nfrom pydantic import BaseModel, ConfigDict\n\nfrom chatvis.documents.prompt_generation_examples import (\n    PROMPT_GENERATION_EXAMPLES,\n    PromptGenerationExample,\n)\n\n\nclass PromptGenerationPrompt(BaseModel):\n    model_config = ConfigDict(arbitrary_types_allowed=True)\n\n    system_prompt: str = \"\"\"\nYou are a prompt generator.\nDo not provide any other text than the prompt.\n\"\"\"\n    user_prompt: Template\n    example_prompt: PromptGenerationExample"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py",
+    "oldString": "from string import Template\n\nfrom pydantic import BaseModel\n\nfrom chatvis.documents.prompt_generation_examples import (\n    PROMPT_GENERATION_EXAMPLES,\n    PromptGenerationExample,\n)\n\n\nclass PromptGenerationPrompt(BaseModel):\n    system_prompt: str = \"\"\"\nYou are a prompt generator.\nDo not provide any other text than the prompt.\n\"\"\"\n    user_prompt: Template\n    example_prompt: PromptGenerationExample",
+    "newString": "from string import Template\n\nfrom pydantic import BaseModel, ConfigDict\n\nfrom chatvis.documents.prompt_generation_examples import (\n    PROMPT_GENERATION_EXAMPLES,\n    PromptGenerationExample,\n)\n\n\nclass PromptGenerationPrompt(BaseModel):\n    model_config = ConfigDict(arbitrary_types_allowed=True)\n\n    system_prompt: str = \"\"\"\nYou are a prompt generator.\nDo not provide any other text than the prompt.\n\"\"\"\n    user_prompt: Template\n    example_prompt: PromptGenerationExample"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -1377,15 +1409,17 @@ Edit applied successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --help",
-  "description": "Show CLI help output",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --help",
+    "description": "Show CLI help output",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 usage: chatvis [-h]
                [--scenario {ml-dvr,ml-iso,ml-slice-iso,points-surf-clip,stream-glyph}]
@@ -1407,15 +1441,17 @@ https://doi.org/10.1109/SCW63240.2024.00014
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --scenario ml-dvr --model gpt-4o; echo \"exit=$?\"",
-  "description": "Run ml-dvr to confirm NotImplementedError",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --scenario ml-dvr --model gpt-4o; echo \"exit=$?\"",
+    "description": "Run ml-dvr to confirm NotImplementedError",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 Traceback (most recent call last):
   File "<frozen runpy>", line 203, in _run_module_as_main
@@ -1435,15 +1471,17 @@ exit=1
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --scenario bogus 2>&1; echo \"exit=$?\"",
-  "description": "Confirm invalid scenario rejected",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --scenario bogus 2>&1; echo \"exit=$?\"",
+    "description": "Confirm invalid scenario rejected",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 usage: chatvis [-h]
                [--scenario {ml-dvr,ml-iso,ml-slice-iso,points-surf-clip,stream-glyph}]
@@ -1486,15 +1524,17 @@ Can you fix the issue in @chatvis/documents/code_improvement.py
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py",
-  "oldString": "from string import Template\n\nfrom pydantic import BaseModel\n\n\nclass CodeImprovementPrompt(BaseModel):\n    system_prompt: str = \"\"\"",
-  "newString": "from string import Template\n\nfrom pydantic import BaseModel, ConfigDict\n\n\nclass CodeImprovementPrompt(BaseModel):\n    model_config = ConfigDict(arbitrary_types_allowed=True)\n\n    system_prompt: str = \"\"\""
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py",
+    "oldString": "from string import Template\n\nfrom pydantic import BaseModel\n\n\nclass CodeImprovementPrompt(BaseModel):\n    system_prompt: str = \"\"\"",
+    "newString": "from string import Template\n\nfrom pydantic import BaseModel, ConfigDict\n\n\nclass CodeImprovementPrompt(BaseModel):\n    model_config = ConfigDict(arbitrary_types_allowed=True)\n\n    system_prompt: str = \"\"\""
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -1506,15 +1546,17 @@ Edit applied successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -c \"from chatvis.documents.code_improvement import CodeImprovementPrompt; p = CodeImprovementPrompt(); print(type(p.user_prompt).__name__, '-', repr(p.system_prompt[:40]))\"",
-  "description": "Verify CodeImprovementPrompt instantiates",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -c \"from chatvis.documents.code_improvement import CodeImprovementPrompt; p = CodeImprovementPrompt(); print(type(p.user_prompt).__name__, '-', repr(p.system_prompt[:40]))\"",
+    "description": "Verify CodeImprovementPrompt instantiates",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 Template - '\nYou are a great code assistant.\nFocus o'
 
@@ -1541,14 +1583,16 @@ Let me find all Pydantic models in `chatvis/documents/` that use non-Pydantic ty
 **Tool: grep**
 
 **Input:**
+
 ```json
 {
-  "pattern": "class \\w+\\(BaseModel\\)",
-  "path": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents"
+    "pattern": "class \\w+\\(BaseModel\\)",
+    "path": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents"
 }
 ```
 
 **Output:**
+
 ```
 Found 5 matches
 /home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py:
@@ -1575,14 +1619,16 @@ Found 5 matches
 **Tool: grep**
 
 **Input:**
+
 ```json
 {
-  "pattern": "Template",
-  "path": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents"
+    "pattern": "Template",
+    "path": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents"
 }
 ```
 
 **Output:**
+
 ```
 Found 9 matches
 /home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py:
@@ -1614,28 +1660,30 @@ Found 9 matches
 
 Survey of all five `BaseModel` subclasses in `chatvis/documents/`:
 
-| File | Model | Has non-Pydantic typed field? | Action |
-|------|-------|------------------------------|--------|
-| `code_examples.py` | `CodeExample` | No — only `code: str` | None needed |
-| `prompt_generation_examples.py` | `PromptGenerationExample` | No — only `str` fields | None needed |
-| `code_generation.py` | `CodeGenerationPrompt` | No — only `system_prompt: str` (the unused `Template` import is just a stray import) | None needed for `ConfigDict`; clean up unused import |
-| `code_improvement.py` | `CodeImprovementPrompt` | Yes — `user_prompt: Template` | Already fixed |
-| `prompt_generation.py` | `PromptGenerationPrompt` | Yes — `user_prompt: Template` | Already fixed |
+| File                            | Model                     | Has non-Pydantic typed field?                                                        | Action                                               |
+| ------------------------------- | ------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `code_examples.py`              | `CodeExample`             | No — only `code: str`                                                                | None needed                                          |
+| `prompt_generation_examples.py` | `PromptGenerationExample` | No — only `str` fields                                                               | None needed                                          |
+| `code_generation.py`            | `CodeGenerationPrompt`    | No — only `system_prompt: str` (the unused `Template` import is just a stray import) | None needed for `ConfigDict`; clean up unused import |
+| `code_improvement.py`           | `CodeImprovementPrompt`   | Yes — `user_prompt: Template`                                                        | Already fixed                                        |
+| `prompt_generation.py`          | `PromptGenerationPrompt`  | Yes — `user_prompt: Template`                                                        | Already fixed                                        |
 
 The two models that actually need `arbitrary_types_allowed=True` are already done. The only outstanding item is the unused `from string import Template` in `code_generation.py` (flagged earlier — `ruff` F401). Cleaning that up now since you asked to "make this change to all relevant" files.
 
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py",
-  "oldString": "from string import Template\n\nfrom pydantic import BaseModel\n\nfrom chatvis.documents.code_examples import CODE_EXAMPLES",
-  "newString": "from pydantic import BaseModel\n\nfrom chatvis.documents.code_examples import CODE_EXAMPLES"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py",
+    "oldString": "from string import Template\n\nfrom pydantic import BaseModel\n\nfrom chatvis.documents.code_examples import CODE_EXAMPLES",
+    "newString": "from pydantic import BaseModel\n\nfrom chatvis.documents.code_examples import CODE_EXAMPLES"
 }
 ```
 
 **Error:**
+
 ```
 Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.
 ```
@@ -1647,14 +1695,16 @@ Could not find oldString in the file. It must match exactly, including whitespac
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py",
-  "limit": 10
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py",
+    "limit": 10
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py</path>
 <type>file</type>
@@ -1685,15 +1735,17 @@ Let me verify all models import and instantiate cleanly:
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -c \"\nfrom chatvis.documents.code_examples import CODE_EXAMPLES, CodeExample\nfrom chatvis.documents.prompt_generation_examples import PROMPT_GENERATION_EXAMPLES, PromptGenerationExample\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS, CodeGenerationPrompt\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS, PromptGenerationPrompt\nfrom chatvis.documents.code_improvement import CodeImprovementPrompt\nprint('CODE_EXAMPLES:', len(CODE_EXAMPLES))\nprint('PROMPT_GENERATION_EXAMPLES:', len(PROMPT_GENERATION_EXAMPLES))\nprint('CODE_GENERATION_PROMPTS:', len(CODE_GENERATION_PROMPTS))\nprint('PROMPT_GENERATION_PROMPTS:', len(PROMPT_GENERATION_PROMPTS))\nprint('CodeImprovementPrompt:', type(CodeImprovementPrompt().user_prompt).__name__)\n\"",
-  "description": "Verify all documents modules import",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -c \"\nfrom chatvis.documents.code_examples import CODE_EXAMPLES, CodeExample\nfrom chatvis.documents.prompt_generation_examples import PROMPT_GENERATION_EXAMPLES, PromptGenerationExample\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS, CodeGenerationPrompt\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS, PromptGenerationPrompt\nfrom chatvis.documents.code_improvement import CodeImprovementPrompt\nprint('CODE_EXAMPLES:', len(CODE_EXAMPLES))\nprint('PROMPT_GENERATION_EXAMPLES:', len(PROMPT_GENERATION_EXAMPLES))\nprint('CODE_GENERATION_PROMPTS:', len(CODE_GENERATION_PROMPTS))\nprint('PROMPT_GENERATION_PROMPTS:', len(PROMPT_GENERATION_PROMPTS))\nprint('CodeImprovementPrompt:', type(CodeImprovementPrompt().user_prompt).__name__)\n\"",
+    "description": "Verify all documents modules import",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 CODE_EXAMPLES: 16
 PROMPT_GENERATION_EXAMPLES: 5
@@ -1733,14 +1785,16 @@ I'm in plan mode — read-only. Let me inspect existing scaffolding before propo
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py</path>
 <type>file</type>
 <content>
@@ -1788,18 +1842,20 @@ I'm in plan mode — read-only. Let me inspect existing scaffolding before propo
 
 (End of file - total 41 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py</path>
 <type>file</type>
@@ -1904,13 +1960,15 @@ I'm in plan mode — read-only. Let me inspect existing scaffolding before propo
 **Tool: glob**
 
 **Input:**
+
 ```json
 {
-  "pattern": "chatvis/**/*.py"
+    "pattern": "chatvis/**/*.py"
 }
 ```
 
 **Output:**
+
 ```
 /home/nicholas/Documents/projects/ChatVis/chatvis/main.py
 /home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py
@@ -1927,13 +1985,15 @@ I'm in plan mode — read-only. Let me inspect existing scaffolding before propo
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/pyproject.toml"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/pyproject.toml"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/pyproject.toml</path>
 <type>file</type>
@@ -2007,17 +2067,20 @@ Things that are **missing or broken** for the agent to work end-to-end:
 ## Open questions before writing the plan
 
 **Q1 — Fix the two `utils.py` bugs as part of this task?** The agent loop cannot function without them. Options:
-   - (a) Fix both in `chatvis/utils.py` (small, surgical). Restore `extract_error_messages` to look for `Traceback`-anchored blocks like the notebook; fix `extract_python_code` to not iterate-and-append into the same list. **Recommended.**
-   - (b) Leave `utils.py` alone; reimplement these two helpers privately inside `agent.py`. Duplicates logic; not recommended.
-   - (c) Out of scope — write `agent.py` against the broken helpers and let the user discover the issue. Not recommended.
+
+- (a) Fix both in `chatvis/utils.py` (small, surgical). Restore `extract_error_messages` to look for `Traceback`-anchored blocks like the notebook; fix `extract_python_code` to not iterate-and-append into the same list. **Recommended.**
+- (b) Leave `utils.py` alone; reimplement these two helpers privately inside `agent.py`. Duplicates logic; not recommended.
+- (c) Out of scope — write `agent.py` against the broken helpers and let the user discover the issue. Not recommended.
 
 **Q2 — `max_iterations` cap?** Notebooks have none. Suggest:
-   - Add `max_iterations: int = 5` (or whatever you prefer) parameter; raise/return when exceeded. Notebooks' unbounded behavior is reproducible by passing a large value. Preferred over an unbounded default for safety.
+
+- Add `max_iterations: int = 5` (or whatever you prefer) parameter; raise/return when exceeded. Notebooks' unbounded behavior is reproducible by passing a large value. Preferred over an unbounded default for safety.
 
 **Q3 — Per-iteration model switching?** Notebooks use a different model for repair (`gpt-4`) than initial generation (`gpt-4-turbo`). Options:
-   - (a) Single `OpenAIModel` reused for all calls (matches `llm.py`'s current shape; loses per-notebook fidelity).
-   - (b) Accept two `OpenAIModel` instances: `generator_model` and `repair_model`. **Most faithful to notebooks.**
-   - (c) Single model + `--repair-model` CLI option later. Defer.
+
+- (a) Single `OpenAIModel` reused for all calls (matches `llm.py`'s current shape; loses per-notebook fidelity).
+- (b) Accept two `OpenAIModel` instances: `generator_model` and `repair_model`. **Most faithful to notebooks.**
+- (c) Single model + `--repair-model` CLI option later. Defer.
 
 **Q4 — Where does the agent write files?** The notebooks write to `/Users/tanwimallick/...`. The package needs to take this as a parameter. Suggest the agent accept `work_dir: Path` and write `<scenario>_<iteration>.py` into it; screenshot path is whatever the user passed into `prompt_generation` (the LLM bakes it into the script).
 
@@ -2034,129 +2097,129 @@ Things that are **missing or broken** for the agent to work end-to-end:
 ### Files touched
 
 - **`chatvis/utils.py`** — two bug fixes (assuming Q1=a):
-  - `extract_python_code`: rename the result variable so the iteration doesn't share a name with the append target; return the cleaned list. Roughly:
-    ```python
-    raw_blocks = re.findall(r"```python(.*?)```", text, re.DOTALL)
-    return [b.strip() for b in raw_blocks]
-    ```
-  - `extract_error_messages`: restore notebook semantics — only return content anchored on `Traceback (most recent call last):` lines, joining following indented frame lines until the next `File ` line or end. This way benign stderr (warnings) doesn't trigger another loop iteration.
+    - `extract_python_code`: rename the result variable so the iteration doesn't share a name with the append target; return the cleaned list. Roughly:
+        ````python
+        raw_blocks = re.findall(r"```python(.*?)```", text, re.DOTALL)
+        return [b.strip() for b in raw_blocks]
+        ````
+    - `extract_error_messages`: restore notebook semantics — only return content anchored on `Traceback (most recent call last):` lines, joining following indented frame lines until the next `File ` line or end. This way benign stderr (warnings) doesn't trigger another loop iteration.
 
 - **`chatvis/agent.py`** (new) — the agentic loop. Sketch:
 
-  ```python
-  from pathlib import Path
-  import subprocess
+    ````python
+    from pathlib import Path
+    import subprocess
 
-  from pydantic import BaseModel
+    from pydantic import BaseModel
 
-  from chatvis.documents.code_generation import CODE_GENERATION_PROMPTS
-  from chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS
-  from chatvis.llm import (
-      OpenAIModel,
-      code_generation,
-      code_improvement,
-      parse_response,
-      prompt_generation,
-  )
-  from chatvis.utils import extract_error_messages, extract_python_code
-
-
-  class AgentResult(BaseModel):
-      scenario: str
-      script: str
-      script_path: Path
-      iterations: int          # 0 == first generation succeeded
-      success: bool            # False == hit max_iterations with errors remaining
-      error_history: list[list[str]]
+    from chatvis.documents.code_generation import CODE_GENERATION_PROMPTS
+    from chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS
+    from chatvis.llm import (
+        OpenAIModel,
+        code_generation,
+        code_improvement,
+        parse_response,
+        prompt_generation,
+    )
+    from chatvis.utils import extract_error_messages, extract_python_code
 
 
-  def _write_script(code: str, work_dir: Path, scenario: str, attempt: int) -> Path:
-      path = work_dir / f"{scenario}_{attempt}.py"
-      path.write_text(code)
-      return path
+    class AgentResult(BaseModel):
+        scenario: str
+        script: str
+        script_path: Path
+        iterations: int          # 0 == first generation succeeded
+        success: bool            # False == hit max_iterations with errors remaining
+        error_history: list[list[str]]
 
 
-  def _run_pvpython(script_path: Path) -> list[str]:
-      result = subprocess.run(
-          ["pvpython", str(script_path)],
-          capture_output=True,
-          text=True,
-      )
-      return extract_error_messages(result.stderr)
+    def _write_script(code: str, work_dir: Path, scenario: str, attempt: int) -> Path:
+        path = work_dir / f"{scenario}_{attempt}.py"
+        path.write_text(code)
+        return path
 
 
-  def _first_code_block(script_text: str) -> str:
-      blocks = extract_python_code(script_text)
-      if not blocks:
-          raise ValueError("LLM response contained no ```python``` block")
-      return blocks[0]
+    def _run_pvpython(script_path: Path) -> list[str]:
+        result = subprocess.run(
+            ["pvpython", str(script_path)],
+            capture_output=True,
+            text=True,
+        )
+        return extract_error_messages(result.stderr)
 
 
-  def run_agent(
-      scenario: str,
-      input_path: Path,
-      output_path: Path,
-      work_dir: Path,
-      generator_model: OpenAIModel,
-      repair_model: OpenAIModel | None = None,
-      max_iterations: int = 5,
-  ) -> AgentResult:
-      if scenario not in CODE_GENERATION_PROMPTS or scenario not in PROMPT_GENERATION_PROMPTS:
-          raise KeyError(f"unknown scenario: {scenario!r}")
-      repair_model = repair_model or generator_model
-      work_dir.mkdir(parents=True, exist_ok=True)
+    def _first_code_block(script_text: str) -> str:
+        blocks = extract_python_code(script_text)
+        if not blocks:
+            raise ValueError("LLM response contained no ```python``` block")
+        return blocks[0]
 
-      # 1. Generate the natural-language prompt
-      pgp = PROMPT_GENERATION_PROMPTS[scenario]
-      generated_prompt = parse_response(
-          prompt_generation(pgp, generator_model, input_path, output_path)
-      )
 
-      # 2. Generate initial code
-      cgp = CODE_GENERATION_PROMPTS[scenario]
-      script_text = parse_response(code_generation(generated_prompt, cgp, generator_model))
-      code = _first_code_block(script_text)
-      script_path = _write_script(code, work_dir, scenario, 0)
+    def run_agent(
+        scenario: str,
+        input_path: Path,
+        output_path: Path,
+        work_dir: Path,
+        generator_model: OpenAIModel,
+        repair_model: OpenAIModel | None = None,
+        max_iterations: int = 5,
+    ) -> AgentResult:
+        if scenario not in CODE_GENERATION_PROMPTS or scenario not in PROMPT_GENERATION_PROMPTS:
+            raise KeyError(f"unknown scenario: {scenario!r}")
+        repair_model = repair_model or generator_model
+        work_dir.mkdir(parents=True, exist_ok=True)
 
-      # 3. First run
-      errors = _run_pvpython(script_path)
-      error_history: list[list[str]] = [errors]
+        # 1. Generate the natural-language prompt
+        pgp = PROMPT_GENERATION_PROMPTS[scenario]
+        generated_prompt = parse_response(
+            prompt_generation(pgp, generator_model, input_path, output_path)
+        )
 
-      # 4. Repair loop
-      iteration = 0
-      while errors and iteration < max_iterations:
-          iteration += 1
-          script_text = parse_response(
-              code_improvement(
-                  generated_prompt=generated_prompt,
-                  generated_code=code,
-                  shell_errors="\n".join(errors),
-                  openai=repair_model,
-              )
-          )
-          code = _first_code_block(script_text)
-          script_path = _write_script(code, work_dir, scenario, iteration)
-          errors = _run_pvpython(script_path)
-          error_history.append(errors)
+        # 2. Generate initial code
+        cgp = CODE_GENERATION_PROMPTS[scenario]
+        script_text = parse_response(code_generation(generated_prompt, cgp, generator_model))
+        code = _first_code_block(script_text)
+        script_path = _write_script(code, work_dir, scenario, 0)
 
-      return AgentResult(
-          scenario=scenario,
-          script=code,
-          script_path=script_path,
-          iterations=iteration,
-          success=not errors,
-          error_history=error_history,
-      )
-  ```
+        # 3. First run
+        errors = _run_pvpython(script_path)
+        error_history: list[list[str]] = [errors]
 
-  Notes embedded above:
-  - Reuses `chatvis.llm` primitives (no LLM logic duplicated).
-  - One model object is the default; second `repair_model` parameter optional (addresses Q3, default behavior = single model).
-  - `max_iterations` cap with default 5 (addresses Q2).
-  - Always picks the **first** code block — same de facto behavior as the notebook bug, but explicit rather than accidental.
-  - Returns a structured `AgentResult` (addresses Q5).
-  - Does **not** modify `chatvis/main.py` (addresses Q6 — defer wiring).
-  - Does **not** call into `chatvis/documents/code_improvement.py`'s `CodeImprovementPrompt` directly; uses `llm.code_improvement` which already does that. (Side note: there's a bug in `llm.code_improvement` — it reads `CodeImprovementPrompt.system_prompt` / `.user_prompt` as **class attributes** rather than instantiating. With Pydantic v2, accessing class-level attrs returns `FieldInfo`, not the default values. This will break at runtime. Should I fix that too? See Q1-bis below.)
+        # 4. Repair loop
+        iteration = 0
+        while errors and iteration < max_iterations:
+            iteration += 1
+            script_text = parse_response(
+                code_improvement(
+                    generated_prompt=generated_prompt,
+                    generated_code=code,
+                    shell_errors="\n".join(errors),
+                    openai=repair_model,
+                )
+            )
+            code = _first_code_block(script_text)
+            script_path = _write_script(code, work_dir, scenario, iteration)
+            errors = _run_pvpython(script_path)
+            error_history.append(errors)
+
+        return AgentResult(
+            scenario=scenario,
+            script=code,
+            script_path=script_path,
+            iterations=iteration,
+            success=not errors,
+            error_history=error_history,
+        )
+    ````
+
+    Notes embedded above:
+    - Reuses `chatvis.llm` primitives (no LLM logic duplicated).
+    - One model object is the default; second `repair_model` parameter optional (addresses Q3, default behavior = single model).
+    - `max_iterations` cap with default 5 (addresses Q2).
+    - Always picks the **first** code block — same de facto behavior as the notebook bug, but explicit rather than accidental.
+    - Returns a structured `AgentResult` (addresses Q5).
+    - Does **not** modify `chatvis/main.py` (addresses Q6 — defer wiring).
+    - Does **not** call into `chatvis/documents/code_improvement.py`'s `CodeImprovementPrompt` directly; uses `llm.code_improvement` which already does that. (Side note: there's a bug in `llm.code_improvement` — it reads `CodeImprovementPrompt.system_prompt` / `.user_prompt` as **class attributes** rather than instantiating. With Pydantic v2, accessing class-level attrs returns `FieldInfo`, not the default values. This will break at runtime. Should I fix that too? See Q1-bis below.)
 
 ### Files NOT touched
 
@@ -2171,11 +2234,11 @@ Things that are **missing or broken** for the agent to work end-to-end:
 
 - Static import check: `uv run python -c "from chatvis.agent import run_agent, AgentResult; print('ok')"`.
 - Add a single pytest under (proposed) `tests/test_agent.py` that monkeypatches `subprocess.run` and the `OpenAIModel.chat` method to return canned responses, verifying:
-  1. clean first run → `iterations == 0`, `success is True`.
-  2. one error then clean → `iterations == 1`, `success is True`.
-  3. persistent error → `iterations == max_iterations`, `success is False`, `len(error_history) == max_iterations + 1`.
+    1. clean first run → `iterations == 0`, `success is True`.
+    2. one error then clean → `iterations == 1`, `success is True`.
+    3. persistent error → `iterations == max_iterations`, `success is False`, `len(error_history) == max_iterations + 1`.
 
-  This is the first test in the repo. `pytest` is already in dev deps (line 16 of `pyproject.toml`). Open question Q8 below.
+    This is the first test in the repo. `pytest` is already in dev deps (line 16 of `pyproject.toml`). Open question Q8 below.
 
 ### Out-of-scope items I'm flagging but not fixing (unless answered)
 
@@ -2206,39 +2269,41 @@ I'll execute the plan. I'll proceed with the recommended defaults for all open q
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Fix class-vs-instance attribute access in llm.code_improvement",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Create chatvis/agent.py with run_agent and AgentResult",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Verify imports and run tests",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Fix class-vs-instance attribute access in llm.code_improvement",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Create chatvis/agent.py with run_agent and AgentResult",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Verify imports and run tests",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -2276,14 +2341,16 @@ I'll execute the plan. I'll proceed with the recommended defaults for all open q
 **Tool: write**
 
 **Input:**
-```json
+
+````json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py",
-  "content": "import re\n\nimport pandas as pd\n\n\ndef pydantic_to_dataframe(models: list) -> pd.DataFrame:\n    \"\"\"Converts a list of Pydantic models into a pandas DataFrame.\"\"\"\n    return pd.DataFrame([model.model_dump() for model in models])\n\n\ndef extract_python_code(text: str) -> list[str]:\n    \"\"\"\n    Extract Python code from encapsulated Markdown flavored code blocks.\n\n    Returns a list of strings of each code block.\n    \"\"\"\n    # Regular expression to find all occurrences of Python code blocks\n    raw_blocks: list[str] = re.findall(r\"```python(.*?)```\", text, re.DOTALL)\n\n    # Strip leading/trailing whitespace and maintain internal formatting\n    return [block.strip() for block in raw_blocks]\n\n\ndef extract_error_messages(stderr_output: str) -> list[str]:\n    \"\"\"\n    Extract Python tracebacks from a subprocess stderr stream.\n\n    Only content anchored on ``Traceback (most recent call last):`` is\n    returned, so benign stderr noise (warnings, deprecation notices) does\n    not register as an error.\n\n    Returns a list of strings, one per detected traceback.\n    \"\"\"\n    lines: list[str] = stderr_output.split(\"\\n\")\n    error_messages: list[str] = []\n\n    for i, line in enumerate(lines):\n        if \"Traceback (most recent call last):\" not in line:\n            continue\n\n        # Walk forward to the first ``File ...`` frame, then collect\n        # subsequent lines until the next ``File ...`` frame or EOF.\n        for j in range(i + 1, len(lines)):\n            if not lines[j].strip().startswith(\"File\"):\n                continue\n\n            error_detail: str = lines[j].strip()\n            k: int = j + 1\n            while k < len(lines) and not lines[k].strip().startswith(\"File\"):\n                error_detail += \"\\n\" + lines[k].strip()\n                k += 1\n            error_messages.append(error_detail)\n            break\n\n    return error_messages\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py",
+    "content": "import re\n\nimport pandas as pd\n\n\ndef pydantic_to_dataframe(models: list) -> pd.DataFrame:\n    \"\"\"Converts a list of Pydantic models into a pandas DataFrame.\"\"\"\n    return pd.DataFrame([model.model_dump() for model in models])\n\n\ndef extract_python_code(text: str) -> list[str]:\n    \"\"\"\n    Extract Python code from encapsulated Markdown flavored code blocks.\n\n    Returns a list of strings of each code block.\n    \"\"\"\n    # Regular expression to find all occurrences of Python code blocks\n    raw_blocks: list[str] = re.findall(r\"```python(.*?)```\", text, re.DOTALL)\n\n    # Strip leading/trailing whitespace and maintain internal formatting\n    return [block.strip() for block in raw_blocks]\n\n\ndef extract_error_messages(stderr_output: str) -> list[str]:\n    \"\"\"\n    Extract Python tracebacks from a subprocess stderr stream.\n\n    Only content anchored on ``Traceback (most recent call last):`` is\n    returned, so benign stderr noise (warnings, deprecation notices) does\n    not register as an error.\n\n    Returns a list of strings, one per detected traceback.\n    \"\"\"\n    lines: list[str] = stderr_output.split(\"\\n\")\n    error_messages: list[str] = []\n\n    for i, line in enumerate(lines):\n        if \"Traceback (most recent call last):\" not in line:\n            continue\n\n        # Walk forward to the first ``File ...`` frame, then collect\n        # subsequent lines until the next ``File ...`` frame or EOF.\n        for j in range(i + 1, len(lines)):\n            if not lines[j].strip().startswith(\"File\"):\n                continue\n\n            error_detail: str = lines[j].strip()\n            k: int = j + 1\n            while k < len(lines) and not lines[k].strip().startswith(\"File\"):\n                error_detail += \"\\n\" + lines[k].strip()\n                k += 1\n            error_messages.append(error_detail)\n            break\n\n    return error_messages\n"
 }
-```
+````
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -2295,39 +2362,41 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Fix class-vs-instance attribute access in llm.code_improvement",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Create chatvis/agent.py with run_agent and AgentResult",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Verify imports and run tests",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Fix class-vs-instance attribute access in llm.code_improvement",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Create chatvis/agent.py with run_agent and AgentResult",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Verify imports and run tests",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -2365,15 +2434,17 @@ Wrote file successfully.
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py",
-  "oldString": "def code_improvement(\n    generated_prompt: str,\n    generated_code: str,\n    shell_errors: str,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    system_prompt: str = CodeImprovementPrompt.system_prompt\n    user_prompt: str = CodeImprovementPrompt.user_prompt.substitute(\n        errors=shell_errors,\n        python_script=generated_code,\n        prompt=generated_prompt,\n    )\n\n    return openai.chat(system_prompt=system_prompt, user_prompt=user_prompt)",
-  "newString": "def code_improvement(\n    generated_prompt: str,\n    generated_code: str,\n    shell_errors: str,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    cip: CodeImprovementPrompt = CodeImprovementPrompt()\n    user_prompt: str = cip.user_prompt.substitute(\n        errors=shell_errors,\n        python_script=generated_code,\n        prompt=generated_prompt,\n    )\n\n    return openai.chat(system_prompt=cip.system_prompt, user_prompt=user_prompt)"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py",
+    "oldString": "def code_improvement(\n    generated_prompt: str,\n    generated_code: str,\n    shell_errors: str,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    system_prompt: str = CodeImprovementPrompt.system_prompt\n    user_prompt: str = CodeImprovementPrompt.user_prompt.substitute(\n        errors=shell_errors,\n        python_script=generated_code,\n        prompt=generated_prompt,\n    )\n\n    return openai.chat(system_prompt=system_prompt, user_prompt=user_prompt)",
+    "newString": "def code_improvement(\n    generated_prompt: str,\n    generated_code: str,\n    shell_errors: str,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    cip: CodeImprovementPrompt = CodeImprovementPrompt()\n    user_prompt: str = cip.user_prompt.substitute(\n        errors=shell_errors,\n        python_script=generated_code,\n        prompt=generated_prompt,\n    )\n\n    return openai.chat(system_prompt=cip.system_prompt, user_prompt=user_prompt)"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -2385,39 +2456,41 @@ Edit applied successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Fix class-vs-instance attribute access in llm.code_improvement",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Create chatvis/agent.py with run_agent and AgentResult",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Verify imports and run tests",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Fix class-vs-instance attribute access in llm.code_improvement",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Create chatvis/agent.py with run_agent and AgentResult",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Verify imports and run tests",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -2455,14 +2528,16 @@ Edit applied successfully.
 **Tool: write**
 
 **Input:**
-```json
+
+````json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/agent.py",
-  "content": "\"\"\"Agentic ParaView code generation + self-repair loop.\n\nThis module ports the agentic structure from the working scenario notebooks\n(see ``notebooks/ml-dvr.ipynb``, ``notebooks/ml-iso.ipynb``, and the live\n``while errors:`` loops in ``notebooks/stream-glyph.ipynb`` and\n``notebooks/points-surf-clip.ipynb``).\n\nThe loop:\n\n    1. Generate a refined natural-language prompt from the scenario template.\n    2. Generate ParaView Python code from that prompt.\n    3. Persist the first ``python`` code block from the LLM response to disk.\n    4. Execute it via ``pvpython`` as a subprocess.\n    5. If the stderr contains a Python traceback, ask the LLM to repair the\n       script and try again, up to ``max_iterations`` times.\n\"\"\"\n\nimport subprocess\nfrom pathlib import Path\n\nfrom pydantic import BaseModel\n\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS\nfrom chatvis.llm import (\n    OpenAIModel,\n    code_generation,\n    code_improvement,\n    parse_response,\n    prompt_generation,\n)\nfrom chatvis.utils import extract_error_messages, extract_python_code\n\n\nclass AgentResult(BaseModel):\n    \"\"\"Structured outcome of an agent run.\"\"\"\n\n    scenario: str\n    script: str\n    script_path: Path\n    iterations: int\n    success: bool\n    error_history: list[list[str]]\n\n\ndef _write_script(\n    code: str,\n    work_dir: Path,\n    scenario: str,\n    attempt: int,\n) -> Path:\n    \"\"\"Persist a generated script to ``<work_dir>/<scenario>_<attempt>.py``.\"\"\"\n    path: Path = work_dir / f\"{scenario}_{attempt}.py\"\n    path.write_text(code)\n    return path\n\n\ndef _run_pvpython(script_path: Path) -> list[str]:\n    \"\"\"Invoke ``pvpython <script_path>`` and return any tracebacks in stderr.\"\"\"\n    result: subprocess.CompletedProcess[str] = subprocess.run(\n        [\"pvpython\", str(script_path)],\n        capture_output=True,\n        text=True,\n    )\n    return extract_error_messages(result.stderr)\n\n\ndef _first_code_block(response_text: str) -> str:\n    \"\"\"Return the first ``python`` code block from an LLM response.\"\"\"\n    blocks: list[str] = extract_python_code(response_text)\n    if not blocks:\n        raise ValueError(\"LLM response contained no ```python``` block\")\n    return blocks[0]\n\n\ndef run_agent(\n    scenario: str,\n    input_path: Path,\n    output_path: Path,\n    work_dir: Path,\n    generator_model: OpenAIModel,\n    repair_model: OpenAIModel | None = None,\n    max_iterations: int = 5,\n) -> AgentResult:\n    \"\"\"Drive the prompt -> code -> execute -> repair loop for a scenario.\n\n    Args:\n        scenario: scenario key (must exist in both ``PROMPT_GENERATION_PROMPTS``\n            and ``CODE_GENERATION_PROMPTS``).\n        input_path: dataset path to substitute into the scenario prompt.\n        output_path: screenshot output path to substitute into the prompt.\n        work_dir: directory into which each generated script is written.\n        generator_model: model used for the initial prompt + code generation.\n        repair_model: model used inside the repair loop. Defaults to\n            ``generator_model`` if omitted (matches notebook behavior when no\n            second model is needed).\n        max_iterations: maximum repair attempts after the initial generation.\n            ``0`` disables repair entirely.\n\n    Returns:\n        AgentResult capturing the final script, where it lives on disk, the\n        number of repair iterations consumed, whether the final run was\n        error-free, and the per-iteration error history (index 0 is the\n        initial run, subsequent indices are post-repair runs).\n    \"\"\"\n    if scenario not in CODE_GENERATION_PROMPTS:\n        raise KeyError(f\"scenario {scenario!r} missing from CODE_GENERATION_PROMPTS\")\n    if scenario not in PROMPT_GENERATION_PROMPTS:\n        raise KeyError(f\"scenario {scenario!r} missing from PROMPT_GENERATION_PROMPTS\")\n\n    repair_model = repair_model or generator_model\n    work_dir.mkdir(parents=True, exist_ok=True)\n\n    # 1. Generate refined natural-language prompt.\n    generated_prompt: str = parse_response(\n        prompt_generation(\n            pgp=PROMPT_GENERATION_PROMPTS[scenario],\n            openai=generator_model,\n            input_path=input_path,\n            output_path=output_path,\n        )\n    )\n\n    # 2. Generate initial ParaView script.\n    script_text: str = parse_response(\n        code_generation(\n            generated_prompt=generated_prompt,\n            cgp=CODE_GENERATION_PROMPTS[scenario],\n            openai=generator_model,\n        )\n    )\n    code: str = _first_code_block(script_text)\n    script_path: Path = _write_script(code, work_dir, scenario, 0)\n\n    # 3. Execute the initial script.\n    errors: list[str] = _run_pvpython(script_path)\n    error_history: list[list[str]] = [errors]\n\n    # 4. Repair loop.\n    iteration: int = 0\n    while errors and iteration < max_iterations:\n        iteration += 1\n\n        repaired_text: str = parse_response(\n            code_improvement(\n                generated_prompt=generated_prompt,\n                generated_code=code,\n                shell_errors=\"\\n\".join(errors),\n                openai=repair_model,\n            )\n        )\n        code = _first_code_block(repaired_text)\n        script_path = _write_script(code, work_dir, scenario, iteration)\n\n        errors = _run_pvpython(script_path)\n        error_history.append(errors)\n\n    return AgentResult(\n        scenario=scenario,\n        script=code,\n        script_path=script_path,\n        iterations=iteration,\n        success=not errors,\n        error_history=error_history,\n    )\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/agent.py",
+    "content": "\"\"\"Agentic ParaView code generation + self-repair loop.\n\nThis module ports the agentic structure from the working scenario notebooks\n(see ``notebooks/ml-dvr.ipynb``, ``notebooks/ml-iso.ipynb``, and the live\n``while errors:`` loops in ``notebooks/stream-glyph.ipynb`` and\n``notebooks/points-surf-clip.ipynb``).\n\nThe loop:\n\n    1. Generate a refined natural-language prompt from the scenario template.\n    2. Generate ParaView Python code from that prompt.\n    3. Persist the first ``python`` code block from the LLM response to disk.\n    4. Execute it via ``pvpython`` as a subprocess.\n    5. If the stderr contains a Python traceback, ask the LLM to repair the\n       script and try again, up to ``max_iterations`` times.\n\"\"\"\n\nimport subprocess\nfrom pathlib import Path\n\nfrom pydantic import BaseModel\n\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS\nfrom chatvis.llm import (\n    OpenAIModel,\n    code_generation,\n    code_improvement,\n    parse_response,\n    prompt_generation,\n)\nfrom chatvis.utils import extract_error_messages, extract_python_code\n\n\nclass AgentResult(BaseModel):\n    \"\"\"Structured outcome of an agent run.\"\"\"\n\n    scenario: str\n    script: str\n    script_path: Path\n    iterations: int\n    success: bool\n    error_history: list[list[str]]\n\n\ndef _write_script(\n    code: str,\n    work_dir: Path,\n    scenario: str,\n    attempt: int,\n) -> Path:\n    \"\"\"Persist a generated script to ``<work_dir>/<scenario>_<attempt>.py``.\"\"\"\n    path: Path = work_dir / f\"{scenario}_{attempt}.py\"\n    path.write_text(code)\n    return path\n\n\ndef _run_pvpython(script_path: Path) -> list[str]:\n    \"\"\"Invoke ``pvpython <script_path>`` and return any tracebacks in stderr.\"\"\"\n    result: subprocess.CompletedProcess[str] = subprocess.run(\n        [\"pvpython\", str(script_path)],\n        capture_output=True,\n        text=True,\n    )\n    return extract_error_messages(result.stderr)\n\n\ndef _first_code_block(response_text: str) -> str:\n    \"\"\"Return the first ``python`` code block from an LLM response.\"\"\"\n    blocks: list[str] = extract_python_code(response_text)\n    if not blocks:\n        raise ValueError(\"LLM response contained no ```python``` block\")\n    return blocks[0]\n\n\ndef run_agent(\n    scenario: str,\n    input_path: Path,\n    output_path: Path,\n    work_dir: Path,\n    generator_model: OpenAIModel,\n    repair_model: OpenAIModel | None = None,\n    max_iterations: int = 5,\n) -> AgentResult:\n    \"\"\"Drive the prompt -> code -> execute -> repair loop for a scenario.\n\n    Args:\n        scenario: scenario key (must exist in both ``PROMPT_GENERATION_PROMPTS``\n            and ``CODE_GENERATION_PROMPTS``).\n        input_path: dataset path to substitute into the scenario prompt.\n        output_path: screenshot output path to substitute into the prompt.\n        work_dir: directory into which each generated script is written.\n        generator_model: model used for the initial prompt + code generation.\n        repair_model: model used inside the repair loop. Defaults to\n            ``generator_model`` if omitted (matches notebook behavior when no\n            second model is needed).\n        max_iterations: maximum repair attempts after the initial generation.\n            ``0`` disables repair entirely.\n\n    Returns:\n        AgentResult capturing the final script, where it lives on disk, the\n        number of repair iterations consumed, whether the final run was\n        error-free, and the per-iteration error history (index 0 is the\n        initial run, subsequent indices are post-repair runs).\n    \"\"\"\n    if scenario not in CODE_GENERATION_PROMPTS:\n        raise KeyError(f\"scenario {scenario!r} missing from CODE_GENERATION_PROMPTS\")\n    if scenario not in PROMPT_GENERATION_PROMPTS:\n        raise KeyError(f\"scenario {scenario!r} missing from PROMPT_GENERATION_PROMPTS\")\n\n    repair_model = repair_model or generator_model\n    work_dir.mkdir(parents=True, exist_ok=True)\n\n    # 1. Generate refined natural-language prompt.\n    generated_prompt: str = parse_response(\n        prompt_generation(\n            pgp=PROMPT_GENERATION_PROMPTS[scenario],\n            openai=generator_model,\n            input_path=input_path,\n            output_path=output_path,\n        )\n    )\n\n    # 2. Generate initial ParaView script.\n    script_text: str = parse_response(\n        code_generation(\n            generated_prompt=generated_prompt,\n            cgp=CODE_GENERATION_PROMPTS[scenario],\n            openai=generator_model,\n        )\n    )\n    code: str = _first_code_block(script_text)\n    script_path: Path = _write_script(code, work_dir, scenario, 0)\n\n    # 3. Execute the initial script.\n    errors: list[str] = _run_pvpython(script_path)\n    error_history: list[list[str]] = [errors]\n\n    # 4. Repair loop.\n    iteration: int = 0\n    while errors and iteration < max_iterations:\n        iteration += 1\n\n        repaired_text: str = parse_response(\n            code_improvement(\n                generated_prompt=generated_prompt,\n                generated_code=code,\n                shell_errors=\"\\n\".join(errors),\n                openai=repair_model,\n            )\n        )\n        code = _first_code_block(repaired_text)\n        script_path = _write_script(code, work_dir, scenario, iteration)\n\n        errors = _run_pvpython(script_path)\n        error_history.append(errors)\n\n    return AgentResult(\n        scenario=scenario,\n        script=code,\n        script_path=script_path,\n        iterations=iteration,\n        success=not errors,\n        error_history=error_history,\n    )\n"
 }
-```
+````
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -2474,13 +2549,15 @@ Wrote file successfully.
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py</path>
 <type>file</type>
@@ -2500,39 +2577,41 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Fix class-vs-instance attribute access in llm.code_improvement",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Create chatvis/agent.py with run_agent and AgentResult",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
-      "status": "in_progress",
-      "priority": "medium"
-    },
-    {
-      "content": "Verify imports and run tests",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Fix class-vs-instance attribute access in llm.code_improvement",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Create chatvis/agent.py with run_agent and AgentResult",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
+            "status": "in_progress",
+            "priority": "medium"
+        },
+        {
+            "content": "Verify imports and run tests",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -2570,14 +2649,16 @@ Wrote file successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "ls /home/nicholas/Documents/projects/ChatVis/tests 2>/dev/null || echo \"no tests dir\"",
-  "description": "Check for existing tests directory"
+    "command": "ls /home/nicholas/Documents/projects/ChatVis/tests 2>/dev/null || echo \"no tests dir\"",
+    "description": "Check for existing tests directory"
 }
 ```
 
 **Output:**
+
 ```
 no tests dir
 
@@ -2590,14 +2671,16 @@ no tests dir
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "mkdir /home/nicholas/Documents/projects/ChatVis/tests",
-  "description": "Create tests directory"
+    "command": "mkdir /home/nicholas/Documents/projects/ChatVis/tests",
+    "description": "Create tests directory"
 }
 ```
 
 **Output:**
+
 ```
 (no output)
 ```
@@ -2609,14 +2692,16 @@ no tests dir
 **Tool: write**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/tests/__init__.py",
-  "content": ""
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/tests/__init__.py",
+    "content": ""
 }
 ```
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -2628,14 +2713,16 @@ Wrote file successfully.
 **Tool: write**
 
 **Input:**
-```json
+
+````json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/tests/test_agent.py",
-  "content": "\"\"\"Mock-driven tests for the agentic loop in ``chatvis.agent``.\n\nNo network calls and no ``pvpython`` invocation: ``subprocess.run`` and the\n``OpenAIModel.chat`` method are monkeypatched so the loop's control flow can\nbe exercised in isolation.\n\"\"\"\n\nimport subprocess\nfrom pathlib import Path\nfrom typing import Any\n\nimport pytest\nfrom openai.types.chat import ChatCompletion\nfrom openai.types.chat.chat_completion import Choice\nfrom openai.types.chat.chat_completion_message import ChatCompletionMessage\n\nimport chatvis.agent as agent_module\nfrom chatvis.agent import AgentResult, run_agent\nfrom chatvis.llm import OpenAIModel\n\n\nSCENARIO: str = \"ml-dvr\"\n\n\ndef _completion(content: str) -> ChatCompletion:\n    \"\"\"Build a minimal ChatCompletion carrying the given text.\"\"\"\n    return ChatCompletion(\n        id=\"test\",\n        choices=[\n            Choice(\n                finish_reason=\"stop\",\n                index=0,\n                message=ChatCompletionMessage(\n                    role=\"assistant\",\n                    content=content,\n                ),\n            )\n        ],\n        created=0,\n        model=\"mock\",\n        object=\"chat.completion\",\n    )\n\n\ndef _code_block(body: str = \"print('hello')\") -> str:\n    return f\"```python\\n{body}\\n```\"\n\n\nclass _ScriptedModel(OpenAIModel):\n    \"\"\"OpenAIModel stand-in returning canned responses in order.\"\"\"\n\n    def __init__(self, responses: list[str]) -> None:\n        # Skip the real __init__ -- we never touch the network.\n        self._responses: list[str] = list(responses)\n        self.calls: list[tuple[str, str]] = []\n        self.model_name: str = \"mock\"\n\n    def chat(self, system_prompt: str, user_prompt: str) -> ChatCompletion:\n        self.calls.append((system_prompt, user_prompt))\n        if not self._responses:\n            raise AssertionError(\"scripted model exhausted its canned responses\")\n        return _completion(self._responses.pop(0))\n\n\ndef _patch_pvpython(\n    monkeypatch: pytest.MonkeyPatch,\n    stderr_sequence: list[str],\n) -> list[Path]:\n    \"\"\"Replace subprocess.run with one that returns the next stderr in order.\n\n    Returns a list that gets populated with the script path of each call --\n    useful for asserting which generated file was actually executed.\n    \"\"\"\n    invocations: list[Path] = []\n    queue: list[str] = list(stderr_sequence)\n\n    def fake_run(\n        cmd: list[str],\n        *args: Any,\n        **kwargs: Any,\n    ) -> subprocess.CompletedProcess[str]:\n        assert cmd[0] == \"pvpython\"\n        invocations.append(Path(cmd[1]))\n        if not queue:\n            raise AssertionError(\n                \"subprocess.run called more times than stderr_sequence provided\"\n            )\n        return subprocess.CompletedProcess(\n            args=cmd, returncode=0, stdout=\"\", stderr=queue.pop(0)\n        )\n\n    monkeypatch.setattr(agent_module.subprocess, \"run\", fake_run)\n    return invocations\n\n\ndef test_clean_first_run_returns_zero_iterations(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",  # prompt_generation\n            _code_block(\"# initial\"),  # code_generation\n        ]\n    )\n    runs = _patch_pvpython(monkeypatch, stderr_sequence=[\"\"])\n\n    result: AgentResult = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=model,\n    )\n\n    assert result.success is True\n    assert result.iterations == 0\n    assert result.error_history == [[]]\n    assert len(runs) == 1\n    assert runs[0] == tmp_path / f\"{SCENARIO}_0.py\"\n    assert result.script_path == runs[0]\n    assert result.script_path.read_text() == \"# initial\"\n\n\ndef test_single_repair_then_success(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    traceback = (\n        \"Traceback (most recent call last):\\n\"\n        '  File \"x.py\", line 1, in <module>\\n'\n        \"    boom()\\n\"\n        \"NameError: name 'boom' is not defined\\n\"\n    )\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",  # prompt_generation\n            _code_block(\"# v0\"),  # code_generation\n            _code_block(\"# v1\"),  # code_improvement\n        ]\n    )\n    runs = _patch_pvpython(monkeypatch, stderr_sequence=[traceback, \"\"])\n\n    result = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=model,\n    )\n\n    assert result.success is True\n    assert result.iterations == 1\n    assert len(result.error_history) == 2\n    assert result.error_history[0]  # first run had a traceback\n    assert result.error_history[1] == []  # repaired run was clean\n    assert len(runs) == 2\n    assert runs[0] == tmp_path / f\"{SCENARIO}_0.py\"\n    assert runs[1] == tmp_path / f\"{SCENARIO}_1.py\"\n    assert result.script_path.read_text() == \"# v1\"\n\n\ndef test_persistent_error_hits_max_iterations(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    max_iterations = 3\n    traceback = (\n        \"Traceback (most recent call last):\\n\"\n        '  File \"x.py\", line 1, in <module>\\n'\n        \"    boom()\\n\"\n        \"NameError: name 'boom' is not defined\\n\"\n    )\n    # 1 prompt + 1 initial code + max_iterations repair attempts.\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",\n            _code_block(\"# v0\"),\n            *[_code_block(f\"# v{i + 1}\") for i in range(max_iterations)],\n        ]\n    )\n    # initial + max_iterations subsequent runs, all failing.\n    runs = _patch_pvpython(\n        monkeypatch, stderr_sequence=[traceback] * (max_iterations + 1)\n    )\n\n    result = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=model,\n        max_iterations=max_iterations,\n    )\n\n    assert result.success is False\n    assert result.iterations == max_iterations\n    assert len(result.error_history) == max_iterations + 1\n    assert all(history for history in result.error_history)\n    assert len(runs) == max_iterations + 1\n    assert result.script_path == tmp_path / f\"{SCENARIO}_{max_iterations}.py\"\n    assert result.script_path.read_text() == f\"# v{max_iterations}\"\n\n\ndef test_repair_model_used_only_inside_loop(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    traceback = (\n        \"Traceback (most recent call last):\\n\"\n        '  File \"x.py\", line 1, in <module>\\n'\n        \"    boom()\\n\"\n        \"NameError: name 'boom' is not defined\\n\"\n    )\n    generator = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",  # prompt_generation\n            _code_block(\"# v0\"),  # code_generation\n        ]\n    )\n    repair = _ScriptedModel(\n        responses=[\n            _code_block(\"# repaired\"),  # code_improvement\n        ]\n    )\n    _patch_pvpython(monkeypatch, stderr_sequence=[traceback, \"\"])\n\n    result = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=generator,\n        repair_model=repair,\n    )\n\n    assert result.success is True\n    assert result.iterations == 1\n    assert len(generator.calls) == 2  # prompt + initial code\n    assert len(repair.calls) == 1  # one repair\n\n\ndef test_missing_code_block_raises(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",\n            \"no fenced code block here at all\",\n        ]\n    )\n    _patch_pvpython(monkeypatch, stderr_sequence=[])\n\n    with pytest.raises(ValueError, match=\"no ```python``` block\"):\n        run_agent(\n            scenario=SCENARIO,\n            input_path=Path(\"/data/in.vtk\"),\n            output_path=Path(\"/out/shot.png\"),\n            work_dir=tmp_path,\n            generator_model=model,\n        )\n\n\ndef test_unknown_scenario_raises(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    model = _ScriptedModel(responses=[])\n\n    with pytest.raises(KeyError, match=\"bogus\"):\n        run_agent(\n            scenario=\"bogus\",\n            input_path=Path(\"/data/in.vtk\"),\n            output_path=Path(\"/out/shot.png\"),\n            work_dir=tmp_path,\n            generator_model=model,\n        )\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/tests/test_agent.py",
+    "content": "\"\"\"Mock-driven tests for the agentic loop in ``chatvis.agent``.\n\nNo network calls and no ``pvpython`` invocation: ``subprocess.run`` and the\n``OpenAIModel.chat`` method are monkeypatched so the loop's control flow can\nbe exercised in isolation.\n\"\"\"\n\nimport subprocess\nfrom pathlib import Path\nfrom typing import Any\n\nimport pytest\nfrom openai.types.chat import ChatCompletion\nfrom openai.types.chat.chat_completion import Choice\nfrom openai.types.chat.chat_completion_message import ChatCompletionMessage\n\nimport chatvis.agent as agent_module\nfrom chatvis.agent import AgentResult, run_agent\nfrom chatvis.llm import OpenAIModel\n\n\nSCENARIO: str = \"ml-dvr\"\n\n\ndef _completion(content: str) -> ChatCompletion:\n    \"\"\"Build a minimal ChatCompletion carrying the given text.\"\"\"\n    return ChatCompletion(\n        id=\"test\",\n        choices=[\n            Choice(\n                finish_reason=\"stop\",\n                index=0,\n                message=ChatCompletionMessage(\n                    role=\"assistant\",\n                    content=content,\n                ),\n            )\n        ],\n        created=0,\n        model=\"mock\",\n        object=\"chat.completion\",\n    )\n\n\ndef _code_block(body: str = \"print('hello')\") -> str:\n    return f\"```python\\n{body}\\n```\"\n\n\nclass _ScriptedModel(OpenAIModel):\n    \"\"\"OpenAIModel stand-in returning canned responses in order.\"\"\"\n\n    def __init__(self, responses: list[str]) -> None:\n        # Skip the real __init__ -- we never touch the network.\n        self._responses: list[str] = list(responses)\n        self.calls: list[tuple[str, str]] = []\n        self.model_name: str = \"mock\"\n\n    def chat(self, system_prompt: str, user_prompt: str) -> ChatCompletion:\n        self.calls.append((system_prompt, user_prompt))\n        if not self._responses:\n            raise AssertionError(\"scripted model exhausted its canned responses\")\n        return _completion(self._responses.pop(0))\n\n\ndef _patch_pvpython(\n    monkeypatch: pytest.MonkeyPatch,\n    stderr_sequence: list[str],\n) -> list[Path]:\n    \"\"\"Replace subprocess.run with one that returns the next stderr in order.\n\n    Returns a list that gets populated with the script path of each call --\n    useful for asserting which generated file was actually executed.\n    \"\"\"\n    invocations: list[Path] = []\n    queue: list[str] = list(stderr_sequence)\n\n    def fake_run(\n        cmd: list[str],\n        *args: Any,\n        **kwargs: Any,\n    ) -> subprocess.CompletedProcess[str]:\n        assert cmd[0] == \"pvpython\"\n        invocations.append(Path(cmd[1]))\n        if not queue:\n            raise AssertionError(\n                \"subprocess.run called more times than stderr_sequence provided\"\n            )\n        return subprocess.CompletedProcess(\n            args=cmd, returncode=0, stdout=\"\", stderr=queue.pop(0)\n        )\n\n    monkeypatch.setattr(agent_module.subprocess, \"run\", fake_run)\n    return invocations\n\n\ndef test_clean_first_run_returns_zero_iterations(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",  # prompt_generation\n            _code_block(\"# initial\"),  # code_generation\n        ]\n    )\n    runs = _patch_pvpython(monkeypatch, stderr_sequence=[\"\"])\n\n    result: AgentResult = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=model,\n    )\n\n    assert result.success is True\n    assert result.iterations == 0\n    assert result.error_history == [[]]\n    assert len(runs) == 1\n    assert runs[0] == tmp_path / f\"{SCENARIO}_0.py\"\n    assert result.script_path == runs[0]\n    assert result.script_path.read_text() == \"# initial\"\n\n\ndef test_single_repair_then_success(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    traceback = (\n        \"Traceback (most recent call last):\\n\"\n        '  File \"x.py\", line 1, in <module>\\n'\n        \"    boom()\\n\"\n        \"NameError: name 'boom' is not defined\\n\"\n    )\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",  # prompt_generation\n            _code_block(\"# v0\"),  # code_generation\n            _code_block(\"# v1\"),  # code_improvement\n        ]\n    )\n    runs = _patch_pvpython(monkeypatch, stderr_sequence=[traceback, \"\"])\n\n    result = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=model,\n    )\n\n    assert result.success is True\n    assert result.iterations == 1\n    assert len(result.error_history) == 2\n    assert result.error_history[0]  # first run had a traceback\n    assert result.error_history[1] == []  # repaired run was clean\n    assert len(runs) == 2\n    assert runs[0] == tmp_path / f\"{SCENARIO}_0.py\"\n    assert runs[1] == tmp_path / f\"{SCENARIO}_1.py\"\n    assert result.script_path.read_text() == \"# v1\"\n\n\ndef test_persistent_error_hits_max_iterations(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    max_iterations = 3\n    traceback = (\n        \"Traceback (most recent call last):\\n\"\n        '  File \"x.py\", line 1, in <module>\\n'\n        \"    boom()\\n\"\n        \"NameError: name 'boom' is not defined\\n\"\n    )\n    # 1 prompt + 1 initial code + max_iterations repair attempts.\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",\n            _code_block(\"# v0\"),\n            *[_code_block(f\"# v{i + 1}\") for i in range(max_iterations)],\n        ]\n    )\n    # initial + max_iterations subsequent runs, all failing.\n    runs = _patch_pvpython(\n        monkeypatch, stderr_sequence=[traceback] * (max_iterations + 1)\n    )\n\n    result = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=model,\n        max_iterations=max_iterations,\n    )\n\n    assert result.success is False\n    assert result.iterations == max_iterations\n    assert len(result.error_history) == max_iterations + 1\n    assert all(history for history in result.error_history)\n    assert len(runs) == max_iterations + 1\n    assert result.script_path == tmp_path / f\"{SCENARIO}_{max_iterations}.py\"\n    assert result.script_path.read_text() == f\"# v{max_iterations}\"\n\n\ndef test_repair_model_used_only_inside_loop(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    traceback = (\n        \"Traceback (most recent call last):\\n\"\n        '  File \"x.py\", line 1, in <module>\\n'\n        \"    boom()\\n\"\n        \"NameError: name 'boom' is not defined\\n\"\n    )\n    generator = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",  # prompt_generation\n            _code_block(\"# v0\"),  # code_generation\n        ]\n    )\n    repair = _ScriptedModel(\n        responses=[\n            _code_block(\"# repaired\"),  # code_improvement\n        ]\n    )\n    _patch_pvpython(monkeypatch, stderr_sequence=[traceback, \"\"])\n\n    result = run_agent(\n        scenario=SCENARIO,\n        input_path=Path(\"/data/in.vtk\"),\n        output_path=Path(\"/out/shot.png\"),\n        work_dir=tmp_path,\n        generator_model=generator,\n        repair_model=repair,\n    )\n\n    assert result.success is True\n    assert result.iterations == 1\n    assert len(generator.calls) == 2  # prompt + initial code\n    assert len(repair.calls) == 1  # one repair\n\n\ndef test_missing_code_block_raises(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    model = _ScriptedModel(\n        responses=[\n            \"the refined prompt\",\n            \"no fenced code block here at all\",\n        ]\n    )\n    _patch_pvpython(monkeypatch, stderr_sequence=[])\n\n    with pytest.raises(ValueError, match=\"no ```python``` block\"):\n        run_agent(\n            scenario=SCENARIO,\n            input_path=Path(\"/data/in.vtk\"),\n            output_path=Path(\"/out/shot.png\"),\n            work_dir=tmp_path,\n            generator_model=model,\n        )\n\n\ndef test_unknown_scenario_raises(\n    tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n) -> None:\n    model = _ScriptedModel(responses=[])\n\n    with pytest.raises(KeyError, match=\"bogus\"):\n        run_agent(\n            scenario=\"bogus\",\n            input_path=Path(\"/data/in.vtk\"),\n            output_path=Path(\"/out/shot.png\"),\n            work_dir=tmp_path,\n            generator_model=model,\n        )\n"
 }
-```
+````
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -2647,39 +2734,41 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Fix class-vs-instance attribute access in llm.code_improvement",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Create chatvis/agent.py with run_agent and AgentResult",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Verify imports and run tests",
-      "status": "in_progress",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Fix class-vs-instance attribute access in llm.code_improvement",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Create chatvis/agent.py with run_agent and AgentResult",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Verify imports and run tests",
+            "status": "in_progress",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -2717,15 +2806,17 @@ Wrote file successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -c \"from chatvis.agent import run_agent, AgentResult; print('ok'); print(AgentResult.model_fields.keys())\"",
-  "description": "Smoke import agent module",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -c \"from chatvis.agent import run_agent, AgentResult; print('ok'); print(AgentResult.model_fields.keys())\"",
+    "description": "Smoke import agent module",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 ok
 dict_keys(['scenario', 'script', 'script_path', 'iterations', 'success', 'error_history'])
@@ -2735,16 +2826,18 @@ dict_keys(['scenario', 'script', 'script_path', 'iterations', 'success', 'error_
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run pytest tests/ -v",
-  "description": "Run pytest suite",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run pytest tests/ -v",
+    "description": "Run pytest suite",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
-```
+
+````
 ============================= test session starts ==============================
 platform linux -- Python 3.14.5, pytest-9.0.3, pluggy-1.6.0 -- /home/nicholas/Documents/projects/ChatVis/.venv/bin/python
 cachedir: .pytest_cache
@@ -3032,7 +3125,7 @@ FAILED tests/test_agent.py::test_repair_model_used_only_inside_loop - KeyErro...
 FAILED tests/test_agent.py::test_missing_code_block_raises - KeyError: 'gener...
 ========================= 5 failed, 1 passed in 2.03s ==========================
 
-```
+````
 
 ---
 
@@ -3045,15 +3138,17 @@ Minimal fix: rename the kwarg in `llm.prompt_generation` to match the template.
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py",
-  "oldString": "    user_prompt: str = pgp.user_prompt.substitute(\n        input_path=input_path,\n        output_path=output_path,\n        input_prompt=pgp.example_prompt.input_prompt,\n        output_prompt=pgp.example_prompt.generated_prompt,\n    )",
-  "newString": "    user_prompt: str = pgp.user_prompt.substitute(\n        input_path=input_path,\n        output_path=output_path,\n        input_prompt=pgp.example_prompt.input_prompt,\n        generated_prompt=pgp.example_prompt.generated_prompt,\n    )"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py",
+    "oldString": "    user_prompt: str = pgp.user_prompt.substitute(\n        input_path=input_path,\n        output_path=output_path,\n        input_prompt=pgp.example_prompt.input_prompt,\n        output_prompt=pgp.example_prompt.generated_prompt,\n    )",
+    "newString": "    user_prompt: str = pgp.user_prompt.substitute(\n        input_path=input_path,\n        output_path=output_path,\n        input_prompt=pgp.example_prompt.input_prompt,\n        generated_prompt=pgp.example_prompt.generated_prompt,\n    )"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -3065,15 +3160,17 @@ Edit applied successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run pytest tests/ -v",
-  "description": "Re-run tests",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run pytest tests/ -v",
+    "description": "Re-run tests",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 ============================= test session starts ==============================
 platform linux -- Python 3.14.5, pytest-9.0.3, pluggy-1.6.0 -- /home/nicholas/Documents/projects/ChatVis/.venv/bin/python
@@ -3103,14 +3200,16 @@ All six tests pass.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "which pvpython 2>&1 || echo \"pvpython not on PATH\"",
-  "description": "Check whether pvpython is installed"
+    "command": "which pvpython 2>&1 || echo \"pvpython not on PATH\"",
+    "description": "Check whether pvpython is installed"
 }
 ```
 
 **Output:**
+
 ```
 /home/nicholas/.local/bin/miniconda/bin/pvpython
 
@@ -3125,39 +3224,41 @@ All six tests pass.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Fix class-vs-instance attribute access in llm.code_improvement",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Create chatvis/agent.py with run_agent and AgentResult",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Verify imports and run tests",
-      "status": "completed",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix extract_python_code and extract_error_messages bugs in chatvis/utils.py",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Fix class-vs-instance attribute access in llm.code_improvement",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Create chatvis/agent.py with run_agent and AgentResult",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Add tests/test_agent.py with mocked subprocess and OpenAI calls",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Verify imports and run tests",
+            "status": "completed",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -3213,13 +3314,15 @@ Plan mode — read-only. Let me inspect what's already there so the logger plan 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/main.py</path>
 <type>file</type>
@@ -3286,14 +3389,16 @@ Plan mode — read-only. Let me inspect what's already there so the logger plan 
 **Tool: grep**
 
 **Input:**
+
 ```json
 {
-  "pattern": "logg|print\\(",
-  "path": "/home/nicholas/Documents/projects/ChatVis/chatvis"
+    "pattern": "logg|print\\(",
+    "path": "/home/nicholas/Documents/projects/ChatVis/chatvis"
 }
 ```
 
 **Output:**
+
 ```
 No files found
 ```
@@ -3311,6 +3416,7 @@ Confirmed: no existing logging or `print()` calls anywhere in `chatvis/`. Clean 
 **Stdlib `logging`** — no new dependency. Module-level logger named `"chatvis"` so submodules can use `logging.getLogger(__name__)` and inherit configuration automatically.
 
 **One new file: `chatvis/logger.py`** exposing:
+
 - `LOGGER_NAME = "chatvis"` — single source of truth.
 - `configure_logging(log_to_file: bool, level: int = logging.INFO) -> Path | None` — installs handlers on the root `"chatvis"` logger and returns the log file path (or `None` if file logging is disabled). Idempotent: clears any pre-existing handlers it owns so repeated calls in tests don't double-log.
 - File path is computed as `Path.cwd() / f"chatvis_{int(time.time())}.log"` — Unix epoch seconds, as you specified. Computed inside `configure_logging` so the timestamp matches actual run start, not module import.
@@ -3320,6 +3426,7 @@ Confirmed: no existing logging or `print()` calls anywhere in `chatvis/`. Clean 
 **Format**: a single format string used for both handlers — `"%(asctime)s [%(levelname)s] %(name)s: %(message)s"`. Same format on both stdout and file keeps grep-ability consistent. ISO-ish timestamps via `datefmt="%Y-%m-%dT%H:%M:%S"`. Plain stdlib formatter, no color (avoids ANSI in the file).
 
 **Handler split**:
+
 - Always: `StreamHandler(sys.stdout)` at the configured level.
 - When `log_to_file=True`: `FileHandler(path, mode="w", encoding="utf-8")` at the same level. `mode="w"` is safe because the filename embeds an epoch timestamp — collisions impossible at second granularity unless two runs start in the same second, in which case overwrite is the simplest sensible behavior. (If you want `mode="a"`, say so.)
 - `propagate = False` on the `chatvis` logger so it doesn't double-emit through the root logger if a downstream tool also configures `logging`.
@@ -3375,29 +3482,31 @@ Implement this plan
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Create chatvis/logger.py with configure_logging",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Wire --log-file and --log-level into chatvis/main.py",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Verify CLI help, stdout-only run, and file-logging run",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Create chatvis/logger.py with configure_logging",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Wire --log-file and --log-level into chatvis/main.py",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Verify CLI help, stdout-only run, and file-logging run",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -3425,14 +3534,16 @@ Implement this plan
 **Tool: write**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py",
-  "content": "\"\"\"Logging configuration for ChatVis.\n\nExposes a single ``configure_logging`` entry point used by ``chatvis.main``.\nAll submodules should obtain their logger via\n``logging.getLogger(__name__)`` so messages propagate to the ``chatvis``\nroot configured here.\n\"\"\"\n\nimport logging\nimport sys\nimport time\nfrom pathlib import Path\n\nLOGGER_NAME: str = \"chatvis\"\nLOG_FORMAT: str = \"%(asctime)s [%(levelname)s] %(name)s: %(message)s\"\nDATE_FORMAT: str = \"%Y-%m-%dT%H:%M:%SZ\"\n\n\ndef configure_logging(\n    log_to_file: bool,\n    level: int = logging.INFO,\n) -> Path | None:\n    \"\"\"Install stdout (and optionally file) handlers on the ``chatvis`` logger.\n\n    Args:\n        log_to_file: when ``True``, also write log records to\n            ``<cwd>/chatvis_<unix-seconds>.log`` (clobbering any existing\n            file at that path).\n        level: logging level for both handlers and the ``chatvis`` logger.\n\n    Returns:\n        The path to the log file when file logging is enabled, otherwise\n        ``None``.\n    \"\"\"\n    logger: logging.Logger = logging.getLogger(LOGGER_NAME)\n    logger.setLevel(level)\n    logger.propagate = False\n\n    # Make repeat calls idempotent (handy in tests / interactive sessions).\n    for handler in list(logger.handlers):\n        logger.removeHandler(handler)\n        handler.close()\n\n    formatter: logging.Formatter = logging.Formatter(\n        fmt=LOG_FORMAT,\n        datefmt=DATE_FORMAT,\n    )\n    # Emit timestamps in UTC regardless of the host timezone.\n    formatter.converter = time.gmtime\n\n    stream_handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)\n    stream_handler.setLevel(level)\n    stream_handler.setFormatter(formatter)\n    logger.addHandler(stream_handler)\n\n    log_path: Path | None = None\n    if log_to_file:\n        log_path = Path.cwd() / f\"chatvis_{int(time.time())}.log\"\n        file_handler: logging.FileHandler = logging.FileHandler(\n            filename=log_path,\n            mode=\"w\",\n            encoding=\"utf-8\",\n        )\n        file_handler.setLevel(level)\n        file_handler.setFormatter(formatter)\n        logger.addHandler(file_handler)\n\n    return log_path\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py",
+    "content": "\"\"\"Logging configuration for ChatVis.\n\nExposes a single ``configure_logging`` entry point used by ``chatvis.main``.\nAll submodules should obtain their logger via\n``logging.getLogger(__name__)`` so messages propagate to the ``chatvis``\nroot configured here.\n\"\"\"\n\nimport logging\nimport sys\nimport time\nfrom pathlib import Path\n\nLOGGER_NAME: str = \"chatvis\"\nLOG_FORMAT: str = \"%(asctime)s [%(levelname)s] %(name)s: %(message)s\"\nDATE_FORMAT: str = \"%Y-%m-%dT%H:%M:%SZ\"\n\n\ndef configure_logging(\n    log_to_file: bool,\n    level: int = logging.INFO,\n) -> Path | None:\n    \"\"\"Install stdout (and optionally file) handlers on the ``chatvis`` logger.\n\n    Args:\n        log_to_file: when ``True``, also write log records to\n            ``<cwd>/chatvis_<unix-seconds>.log`` (clobbering any existing\n            file at that path).\n        level: logging level for both handlers and the ``chatvis`` logger.\n\n    Returns:\n        The path to the log file when file logging is enabled, otherwise\n        ``None``.\n    \"\"\"\n    logger: logging.Logger = logging.getLogger(LOGGER_NAME)\n    logger.setLevel(level)\n    logger.propagate = False\n\n    # Make repeat calls idempotent (handy in tests / interactive sessions).\n    for handler in list(logger.handlers):\n        logger.removeHandler(handler)\n        handler.close()\n\n    formatter: logging.Formatter = logging.Formatter(\n        fmt=LOG_FORMAT,\n        datefmt=DATE_FORMAT,\n    )\n    # Emit timestamps in UTC regardless of the host timezone.\n    formatter.converter = time.gmtime\n\n    stream_handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)\n    stream_handler.setLevel(level)\n    stream_handler.setFormatter(formatter)\n    logger.addHandler(stream_handler)\n\n    log_path: Path | None = None\n    if log_to_file:\n        log_path = Path.cwd() / f\"chatvis_{int(time.time())}.log\"\n        file_handler: logging.FileHandler = logging.FileHandler(\n            filename=log_path,\n            mode=\"w\",\n            encoding=\"utf-8\",\n        )\n        file_handler.setLevel(level)\n        file_handler.setFormatter(formatter)\n        logger.addHandler(file_handler)\n\n    return log_path\n"
 }
 ```
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -3444,29 +3555,31 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Create chatvis/logger.py with configure_logging",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Wire --log-file and --log-level into chatvis/main.py",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Verify CLI help, stdout-only run, and file-logging run",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Create chatvis/logger.py with configure_logging",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Wire --log-file and --log-level into chatvis/main.py",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Verify CLI help, stdout-only run, and file-logging run",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -3494,14 +3607,16 @@ Wrote file successfully.
 **Tool: write**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
-  "content": "import logging\nfrom argparse import ArgumentParser, Namespace\nfrom pathlib import Path\n\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS\nfrom chatvis.logger import configure_logging\n\nSCENARIOS: list[str] = sorted(\n    set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)\n)\nMODELS: list[str] = [\"gpt-4\", \"gpt-4-turbo\", \"gpt-4o\"]\nLOG_LEVELS: list[str] = [\"DEBUG\", \"INFO\", \"WARNING\", \"ERROR\", \"CRITICAL\"]\n\n\ndef cli_parser() -> Namespace:\n    parser: ArgumentParser = ArgumentParser(\n        prog=\"chatvis\",\n        description=\"Automating Scientific Visualization with a Large Language Model\",\n        epilog=\"https://doi.org/10.1109/SCW63240.2024.00014\",\n    )\n\n    parser.add_argument(\n        \"--scenario\",\n        choices=SCENARIOS,\n        default=\"ml-dvr\",\n        help=\"ChatVis paper scenario to execute (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--model\",\n        choices=MODELS,\n        default=\"gpt-4o\",\n        help=\"LLM to leverage (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--log-file\",\n        action=\"store_true\",\n        help=\"Also write log output to <cwd>/chatvis_<unix-seconds>.log\",\n    )\n    parser.add_argument(\n        \"--log-level\",\n        choices=LOG_LEVELS,\n        default=\"INFO\",\n        help=\"Logging verbosity (default: %(default)s)\",\n    )\n\n    return parser.parse_args()\n\n\ndef main() -> None:\n    cli_args: Namespace = cli_parser()\n\n    log_path: Path | None = configure_logging(\n        log_to_file=cli_args.log_file,\n        level=logging.getLevelNamesMapping()[cli_args.log_level],\n    )\n    if log_path is not None:\n        logging.getLogger(\"chatvis\").info(\"logging to %s\", log_path)\n\n    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\"scenario 'ml-dvr' is not yet implemented\")\n        case \"ml-iso\":\n            raise NotImplementedError(\"scenario 'ml-iso' is not yet implemented\")\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\"scenario 'ml-slice-iso' is not yet implemented\")\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\"scenario 'stream-glyph' is not yet implemented\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
+    "content": "import logging\nfrom argparse import ArgumentParser, Namespace\nfrom pathlib import Path\n\nfrom chatvis.documents.code_generation import CODE_GENERATION_PROMPTS\nfrom chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS\nfrom chatvis.logger import configure_logging\n\nSCENARIOS: list[str] = sorted(\n    set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)\n)\nMODELS: list[str] = [\"gpt-4\", \"gpt-4-turbo\", \"gpt-4o\"]\nLOG_LEVELS: list[str] = [\"DEBUG\", \"INFO\", \"WARNING\", \"ERROR\", \"CRITICAL\"]\n\n\ndef cli_parser() -> Namespace:\n    parser: ArgumentParser = ArgumentParser(\n        prog=\"chatvis\",\n        description=\"Automating Scientific Visualization with a Large Language Model\",\n        epilog=\"https://doi.org/10.1109/SCW63240.2024.00014\",\n    )\n\n    parser.add_argument(\n        \"--scenario\",\n        choices=SCENARIOS,\n        default=\"ml-dvr\",\n        help=\"ChatVis paper scenario to execute (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--model\",\n        choices=MODELS,\n        default=\"gpt-4o\",\n        help=\"LLM to leverage (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--log-file\",\n        action=\"store_true\",\n        help=\"Also write log output to <cwd>/chatvis_<unix-seconds>.log\",\n    )\n    parser.add_argument(\n        \"--log-level\",\n        choices=LOG_LEVELS,\n        default=\"INFO\",\n        help=\"Logging verbosity (default: %(default)s)\",\n    )\n\n    return parser.parse_args()\n\n\ndef main() -> None:\n    cli_args: Namespace = cli_parser()\n\n    log_path: Path | None = configure_logging(\n        log_to_file=cli_args.log_file,\n        level=logging.getLevelNamesMapping()[cli_args.log_level],\n    )\n    if log_path is not None:\n        logging.getLogger(\"chatvis\").info(\"logging to %s\", log_path)\n\n    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\"scenario 'ml-dvr' is not yet implemented\")\n        case \"ml-iso\":\n            raise NotImplementedError(\"scenario 'ml-iso' is not yet implemented\")\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\"scenario 'ml-slice-iso' is not yet implemented\")\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\"scenario 'stream-glyph' is not yet implemented\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
 }
 ```
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -3513,29 +3628,31 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Create chatvis/logger.py with configure_logging",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Wire --log-file and --log-level into chatvis/main.py",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Verify CLI help, stdout-only run, and file-logging run",
-      "status": "in_progress",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Create chatvis/logger.py with configure_logging",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Wire --log-file and --log-level into chatvis/main.py",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Verify CLI help, stdout-only run, and file-logging run",
+            "status": "in_progress",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -3563,14 +3680,16 @@ Wrote file successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "mkdir -p /tmp/opencode/chatvis-log-verify && rm -f /tmp/opencode/chatvis-log-verify/chatvis_*.log",
-  "description": "Prepare scratch dir for verification"
+    "command": "mkdir -p /tmp/opencode/chatvis-log-verify && rm -f /tmp/opencode/chatvis-log-verify/chatvis_*.log",
+    "description": "Prepare scratch dir for verification"
 }
 ```
 
 **Output:**
+
 ```
 (no output)
 ```
@@ -3578,15 +3697,17 @@ Wrote file successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --help",
-  "description": "Show CLI help",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --help",
+    "description": "Show CLI help",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 usage: chatvis [-h]
                [--scenario {ml-dvr,ml-iso,ml-slice-iso,points-surf-clip,stream-glyph}]
@@ -3617,15 +3738,17 @@ https://doi.org/10.1109/SCW63240.2024.00014
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --scenario ml-dvr 2>&1; echo \"exit=$?\"; ls chatvis_*.log 2>/dev/null && echo \"FAIL: file unexpectedly created\" || echo \"OK: no log file created\"",
-  "description": "Run without --log-file; expect no file",
-  "workdir": "/tmp/opencode/chatvis-log-verify"
+    "command": "uv run python -m chatvis.main --scenario ml-dvr 2>&1; echo \"exit=$?\"; ls chatvis_*.log 2>/dev/null && echo \"FAIL: file unexpectedly created\" || echo \"OK: no log file created\"",
+    "description": "Run without --log-file; expect no file",
+    "workdir": "/tmp/opencode/chatvis-log-verify"
 }
 ```
 
 **Output:**
+
 ```
 /home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14: Error while finding module specification for 'chatvis.main' (ModuleNotFoundError: No module named 'chatvis')
 exit=1
@@ -3636,14 +3759,16 @@ OK: no log file created
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m /dev/null 2>&1 || true",
-  "description": "noop"
+    "command": "uv run python -m /dev/null 2>&1 || true",
+    "description": "noop"
 }
 ```
 
 **Output:**
+
 ```
 /home/nicholas/Documents/projects/ChatVis/.venv/bin/python3: No module named /dev/null
 
@@ -3660,15 +3785,17 @@ Actually the simpler test: just `cd` to the scratch dir but invoke the venv's py
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "/home/nicholas/Documents/projects/ChatVis/.venv/bin/python -m chatvis.main --scenario ml-dvr 2>&1; echo \"exit=$?\"; ls chatvis_*.log 2>/dev/null && echo \"FAIL: file unexpectedly created\" || echo \"OK: no log file created\"",
-  "description": "Run without --log-file via venv python",
-  "workdir": "/tmp/opencode/chatvis-log-verify"
+    "command": "/home/nicholas/Documents/projects/ChatVis/.venv/bin/python -m chatvis.main --scenario ml-dvr 2>&1; echo \"exit=$?\"; ls chatvis_*.log 2>/dev/null && echo \"FAIL: file unexpectedly created\" || echo \"OK: no log file created\"",
+    "description": "Run without --log-file via venv python",
+    "workdir": "/tmp/opencode/chatvis-log-verify"
 }
 ```
 
 **Output:**
+
 ```
 /home/nicholas/Documents/projects/ChatVis/.venv/bin/python: Error while finding module specification for 'chatvis.main' (ModuleNotFoundError: No module named 'chatvis')
 exit=1
@@ -3688,7 +3815,7 @@ Resolve these errors:
 
 make build
 rm -rf dist
-git tag | tr -s '[:blank:]' '\n' | sort | tail -n 1  | xargs -I % uv version %
+git tag | tr -s '[:blank:]' '\n' | sort | tail -n 1 | xargs -I % uv version %
 uv build
 Building source distribution...
 error: Multiple top-level packages discovered in a flat-layout: ['data', 'chatvis', 'notebooks'].
@@ -3705,12 +3832,12 @@ Instead, consider the following options:
 3. explicitly set `py_modules` or `packages` with a list of names
 
 To find more information, look for "package discovery" on setuptools docs.
-  × Failed to build `/home/nicholas/Documents/projects/ChatVis`
-  ├─▶ The build backend returned an error
-  ╰─▶ Call to `setuptools.build_meta:__legacy__.build_sdist` failed (exit status: 1)
+× Failed to build `/home/nicholas/Documents/projects/ChatVis`
+├─▶ The build backend returned an error
+╰─▶ Call to `setuptools.build_meta:__legacy__.build_sdist` failed (exit status: 1)
 
 hint: Build failures usually indicate a problem with the package or the build environment
-make: *** [Makefile:4: build] Error 2
+make: \*\*\* [Makefile:4: build] Error 2
 
 ---
 
@@ -3719,13 +3846,15 @@ make: *** [Makefile:4: build] Error 2
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/pyproject.toml"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/pyproject.toml"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/pyproject.toml</path>
 <type>file</type>
@@ -3755,13 +3884,15 @@ make: *** [Makefile:4: build] Error 2
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/Makefile"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/Makefile"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/Makefile</path>
 <type>file</type>
@@ -3793,15 +3924,17 @@ Fix: explicitly tell setuptools the package is `chatvis` (and its `chatvis.docum
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/pyproject.toml",
-  "oldString": "[dependency-groups]\ndev = [\n    \"jupyter>=1.1.1\",\n    \"pytest>=9.0.3\",\n]",
-  "newString": "[dependency-groups]\ndev = [\n    \"jupyter>=1.1.1\",\n    \"pytest>=9.0.3\",\n]\n\n[build-system]\nrequires = [\"setuptools>=80\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.setuptools.packages.find]\ninclude = [\"chatvis*\"]\nexclude = [\"data*\", \"notebooks*\", \"tests*\"]"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/pyproject.toml",
+    "oldString": "[dependency-groups]\ndev = [\n    \"jupyter>=1.1.1\",\n    \"pytest>=9.0.3\",\n]",
+    "newString": "[dependency-groups]\ndev = [\n    \"jupyter>=1.1.1\",\n    \"pytest>=9.0.3\",\n]\n\n[build-system]\nrequires = [\"setuptools>=80\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.setuptools.packages.find]\ninclude = [\"chatvis*\"]\nexclude = [\"data*\", \"notebooks*\", \"tests*\"]"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -3813,15 +3946,17 @@ Edit applied successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "make build",
-  "description": "Run make build",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "make build",
+    "description": "Run make build",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 rm -rf dist
 git tag | tr -s '[:blank:]' '\n' | sort | tail -n 1  | xargs -I % uv version %
@@ -3994,13 +4129,15 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py</path>
 <type>file</type>
@@ -4014,14 +4151,16 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/agent.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/agent.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/agent.py</path>
 <type>file</type>
 <content>
@@ -4193,18 +4332,20 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 
 (End of file - total 165 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py</path>
 <type>file</type>
@@ -4312,13 +4453,15 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py</path>
 <type>file</type>
@@ -4399,13 +4542,15 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/main.py</path>
 <type>file</type>
@@ -4609,14 +4754,16 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py</path>
 <type>file</type>
 <content>
@@ -4678,7 +4825,7 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 
 (End of file - total 55 lines)
 </content>
-```
+````
 
 ---
 
@@ -4687,13 +4834,15 @@ Plan mode — read-only. I'll inspect every file under `chatvis/` and produce a 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents</path>
 <type>directory</type>
@@ -4720,43 +4869,56 @@ Read-only review of `chatvis/`. Findings are split into **bugs** (will misbehave
 ## Bugs (runtime breakage)
 
 ### 1. `main.py:14` — `MODELS` regressed to `["gpt4o"]`
+
 Two iterations ago we settled on `MODELS = ["gpt-4", "gpt-4-turbo", "gpt-4o"]` matching the OpenAI API IDs. The current value is back to the single `"gpt4o"` (no hyphen). Consistent with `connect_to_argo`'s default `model_name="gpt4o"`, which suggests the Argo proxy actually expects that token — but it conflicts with the explicit "match the OpenAI API IDs" decision. Pick one and stick to it (see open question Q1).
 
 ### 2. `main.py:64` — `--log-level` default is `"debug"`, not `"info"`
+
 `default=LOG_LEVELS[0]` and `LOG_LEVELS = ["debug", "info", ...]`, so every invocation defaults to DEBUG. The earlier plan called for INFO. Either reorder the list (`["info", "debug", "warning", "error", "critical"]`) or set `default="info"` explicitly. Letting positional ordering drive the default is brittle — same hazard applies to `MODELS[0]` and `SCENARIOS[0]`.
 
 ### 3. `main.py:16` — `SCENARIOS` no longer derives from the documents
+
 We previously had `SCENARIOS = sorted(set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS))`. It's now a hand-maintained list. Adding/removing a scenario in `chatvis/documents/` will silently desync the CLI. Either restore the derived version or accept the duplication (and add a comment + a `__post_init__`/startup assertion that the lists match).
 
 ### 4. `main.py:135` — `prompt_generation` call passes `output_path=screenshot_path` but no `screenshot_path` ever gets defined upstream
+
 `generate_improved_prompt` takes a `screenshot_path: Path` argument, but `main()` never calls it and never constructs an output path. The function is dead code today, which is fine — but the moment the `match` arms wire into it, you need a CLI flag for the screenshot output path (similar to `--data-filepath`) or a derived convention (e.g., `<cwd>/<scenario>-screenshot.png`).
 
 ### 5. `main.py:91` — `scenario[0:2] == "ml"` matches everything starting with "ml"
+
 That's fine for the current scenario list, but it's also too permissive. `check_data` would happily pair `ml-100.vtk` with a hypothetical future `ml-foo` scenario. Suggest an explicit mapping (scenario name → required dataset filename) rather than substring heuristics.
 
 ### 6. `main.py:95, 99` — `scenario.__contains__("points")` / `.__contains__("stream")`
+
 Use `in`, not the dunder. `"points" in scenario` / `"stream" in scenario`. Functionally equivalent, but the dunder form will get flagged by every linter and is a style outlier.
 
 ### 7. `main.py:123` — `raise IOError(...)` for a non-IO condition
+
 `IOError` is an alias of `OSError` in modern Python. A failed LLM handshake isn't an OS-level IO failure — it's a remote-server protocol/handshake failure. `RuntimeError` (or a custom `ChatvisError`) is more accurate, and `OSError` will mask real OS errors from the same `except`.
 
 ### 8. `main.py:118-123` — `connect_to_argo` handshake is brittle
+
 - LLMs are nondeterministic. Even with `seed=42`, OpenAI does not guarantee identical output; Argo's proxy is even less predictable. Asking the LLM to say `"Hello World"` and `!=`-comparing the response will spuriously fail on whitespace, quoting, trailing punctuation, or model drift. Suggest either: (a) normalize (`resp.strip().rstrip(".!").lower() == "hello world"`), (b) match with `"hello world" in resp.strip().lower()`, or (c) drop the handshake entirely and let the first real call fail naturally.
 - This call costs an API token on every CLI invocation. For a research tool that's negligible; for anything iterative it's wasteful. Worth flagging.
 
 ### 9. `llm.py:18` — endpoint changed to `https://apps.inside.anl.gov/argoapi/v1`
+
 Was `https://argo.apps.inside.anl.gov/v1` previously. If this is the correct Argo endpoint, fine — but worth confirming. The base URL change is the kind of thing that breaks silently (wrong URL → 404 → opaque OpenAI client error).
 
 ### 10. `llm.py:27` — `api_key=anl_username` is semantically wrong
-The OpenAI client labels this parameter `api_key`. Argo apparently authenticates by username (no shared secret), so passing the username here is the right *mechanical* thing to do — but the parameter name on `OpenAIModel.__init__` (`anl_username`) and its routing into `api_key=` is confusing. Either: rename `anl_username` to `auth_token` to match the underlying contract, or add a brief comment explaining that Argo authenticates by username-as-token. The current shape will trip the next reader.
+
+The OpenAI client labels this parameter `api_key`. Argo apparently authenticates by username (no shared secret), so passing the username here is the right _mechanical_ thing to do — but the parameter name on `OpenAIModel.__init__` (`anl_username`) and its routing into `api_key=` is confusing. Either: rename `anl_username` to `auth_token` to match the underlying contract, or add a brief comment explaining that Argo authenticates by username-as-token. The current shape will trip the next reader.
 
 ### 11. `llm.py:21` — `self.logger` is stored but never used
+
 `OpenAIModel.__init__` accepts a `Logger`, stores it, and `chat()` never logs anything. Either remove the parameter or actually log requests/responses. (User said earlier "Don't emit anything yet. I will add these manually" — so this is probably deliberate scaffolding. Worth flagging anyway because right now `connect_to_argo` is forced to construct + pass a `Logger` for no reason.)
 
 ### 12. `agent.py:111` — `repair_model = repair_model or generator_model` interacts oddly with future falsy models
+
 Pydantic instances are always truthy, so today this is fine. But `or`-fallback patterns drift dangerous when the type changes. Prefer `repair_model if repair_model is not None else generator_model`. Minor.
 
 ### 13. `agent.py` is not wired into `main.py`
+
 `main()` defines `connect_to_argo`, builds an `OpenAIModel`, then jumps straight into `match`/`raise NotImplementedError`. The agent loop is never called. This is the actual outstanding work — `agent.run_agent` is sitting there ready to be invoked, but `main.py`'s match arms still raise.
 
 ---
@@ -4764,47 +4926,61 @@ Pydantic instances are always truthy, so today this is fine. But `or`-fallback p
 ## Inconsistencies / smells
 
 ### 14. `main.py` imports `PromptGenerationPrompt` but never instantiates it
+
 The import on line 9 is only used as a type annotation on `generate_improved_prompt`, which itself is dead code. Either wire `generate_improved_prompt` into the `match` arms or remove the dead helper + its import.
 
 ### 15. `main.py` line 11 has a blank line between two `from chatvis...` imports
+
 ```
 from chatvis.documents.prompt_generation import PromptGenerationPrompt
 
 from chatvis.llm import OpenAIModel, parse_response, prompt_generation
 ```
+
 `isort` (configured in pre-commit) will collapse these into a single group. Pre-commit will fail on this file as-is.
 
 ### 16. `main.py:135` — overlong line + trailing comma inside call
+
 ```python
 resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)
 ```
+
 113 chars, plus a trailing comma in a single-line call. `ruff-format` will rewrap this; pre-commit will modify it on its own. Worth pre-formatting.
 
 ### 17. `main.py:138` — missing blank line before `def main()`
+
 PEP 8 requires two blank lines between top-level definitions. `def generate_improved_prompt` and `def main` have only one. Ruff will flag E302.
 
 ### 18. `main.py:149` — `cli_args.__dict__` rather than `vars(cli_args)`
+
 `vars(ns)` is the idiomatic accessor. Functionally identical for `argparse.Namespace`.
 
 ### 19. `setup_logger` partly duplicates `configure_logging`'s responsibilities
+
 `configure_logging` already returns the path, but `setup_logger` re-fetches the logger by string name (`"chatvis"`) instead of using `LOGGER_NAME` from `chatvis.logger`. Tiny indirection drift. Suggest `from chatvis.logger import LOGGER_NAME, configure_logging` and use `logging.getLogger(LOGGER_NAME)`.
 
 ### 20. `logger.py:21` — `level: int = logging.INFO` while `main.py` always passes an int from `getLevelNamesMapping`
+
 Fine. But the lowercase `LOG_LEVELS` in `main.py` requires `.upper()` to look up in `getLevelNamesMapping()`. The lowercase choice is a UX preference; if you want the user to type uppercase (`INFO` vs `info`), drop the `.upper()` and uppercase the choices. Either is fine, just be consistent.
 
 ### 21. `OpenAIModel.chat` no longer accepts `temperature`
+
 The original carried `temperature=42.0` (invalid for OpenAI). Replaced by `seed=42`. `seed` is supported by OpenAI's API; Argo's proxy support is unknown. If Argo doesn't pass `seed` through, the client may 400 or silently ignore it. Worth verifying.
 
 ### 22. `chatvis/__init__.py` is still empty
+
 No exported surface. Users have to know to import from `chatvis.agent`, `chatvis.llm`, `chatvis.logger`. Fine for a research artifact; flag-only.
 
 ### 23. `agent.py:65` — `_run_pvpython` does not check `returncode`
+
 A non-zero exit code with empty stderr (theoretically possible) would be treated as success. Probably fine because `pvpython` writes tracebacks to stderr, but worth noting.
 
 ### 24. `agent.py:53` — `path.write_text(code)` doesn't specify `encoding`
+
 On Linux this uses the platform default (usually UTF-8). On Windows it could surprise. `path.write_text(code, encoding="utf-8")` is the safe form. Minor.
 
 ### 25. Tests not affected, but worth running again
+
 The CLI surface changed substantially (`--data-filepath`, `--username` now required). The current `tests/test_agent.py` doesn't go through `main.py`, so it still passes — but if anyone later writes a CLI-level test, the required flags will trip them up.
 
 ---
@@ -4812,28 +4988,31 @@ The CLI surface changed substantially (`--data-filepath`, `--username` now requi
 ## Cross-cutting observations
 
 ### 26. The agent loop and `main.py`'s dispatch are still parallel universes
+
 `agent.run_agent` is the loop the notebooks describe. `main.py`'s match arms raise `NotImplementedError`. Wiring is the obvious next task and you flagged earlier you'd do it manually — just noting that nothing currently invokes `agent.run_agent` from any code path, so the agent module is exercised only by tests.
 
 ### 27. `documents/` was not reviewed in depth
+
 The `documents/` subdirectory wasn't in the explicit ask, but for completeness, prior reviews flagged: (a) `code_generation.py` f-strings interpolate Pydantic models (producing `code='...'` literal in prompts), (b) the system_prompt strings contain unfilled `{code_to_read}` placeholders. Those bugs are still live and will produce malformed prompts when the LLM actually sees them.
 
 ### 28. No tests cover `main.py`, `logger.py`, `connect_to_argo`, or `check_data`
+
 The only tests are for `agent.py`. `check_data`'s substring matching, the `setup_logger` glue, and the handshake comparison would all benefit from a 30-line unit test.
 
 ---
 
 ## Recommended next steps (no edits yet — pick which to act on)
 
-| # | Severity | Scope | Suggested action |
-|---|----------|-------|------------------|
-| 2 | High | `main.py` 1-line | Change `--log-level` default to `"info"` (or reorder list). |
-| 1 | High | `main.py` | Decide on `MODELS` content + default; align with Argo's actual accepted IDs. |
-| 8 | Medium | `main.py` | Normalize the handshake comparison or drop it. |
-| 6, 18 | Low | `main.py` | Replace dunder calls + `__dict__` with idiomatic equivalents. |
-| 14, 15, 16, 17 | Low | `main.py` | Run `pre-commit run --files chatvis/main.py` and accept the auto-fixes. |
-| 5 | Medium | `main.py` | Replace `check_data` heuristics with an explicit scenario→dataset mapping. |
-| 10, 11 | Low | `llm.py` | Either rename `anl_username` and use the stored logger, or drop the unused logger param. |
-| 26 | The work | `main.py` | Replace `NotImplementedError` arms with `run_agent(...)` calls. Requires deciding on `--screenshot-path` (or derived convention) + a `work_dir` flag. |
+| #              | Severity | Scope            | Suggested action                                                                                                                                      |
+| -------------- | -------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2              | High     | `main.py` 1-line | Change `--log-level` default to `"info"` (or reorder list).                                                                                           |
+| 1              | High     | `main.py`        | Decide on `MODELS` content + default; align with Argo's actual accepted IDs.                                                                          |
+| 8              | Medium   | `main.py`        | Normalize the handshake comparison or drop it.                                                                                                        |
+| 6, 18          | Low      | `main.py`        | Replace dunder calls + `__dict__` with idiomatic equivalents.                                                                                         |
+| 14, 15, 16, 17 | Low      | `main.py`        | Run `pre-commit run --files chatvis/main.py` and accept the auto-fixes.                                                                               |
+| 5              | Medium   | `main.py`        | Replace `check_data` heuristics with an explicit scenario→dataset mapping.                                                                            |
+| 10, 11         | Low      | `llm.py`         | Either rename `anl_username` and use the stored logger, or drop the unused logger param.                                                              |
+| 26             | The work | `main.py`        | Replace `NotImplementedError` arms with `run_agent(...)` calls. Requires deciding on `--screenshot-path` (or derived convention) + a `work_dir` flag. |
 
 ---
 
@@ -4846,9 +5025,10 @@ The only tests are for `agent.py`. `check_data`'s substring matching, the `setup
 **Q3.** Should I (a) re-derive `SCENARIOS` from the documents, or (b) keep the hand-written list and add a startup assertion that it matches the documents' keys?
 
 **Q4.** Want me to wire `agent.run_agent` into the `match` arms in this session? If yes, please confirm:
-   - Add a new `--screenshot-path` CLI flag, or derive `<cwd>/<scenario>-screenshot.png`?
-   - Add a new `--work-dir` CLI flag for generated `.py` files, or default to `<cwd>/generated/<scenario>/`?
-   - Use a single model for both generation + repair (current `connect_to_argo` only returns one), or extend `connect_to_argo` to take two model names?
+
+- Add a new `--screenshot-path` CLI flag, or derive `<cwd>/<scenario>-screenshot.png`?
+- Add a new `--work-dir` CLI flag for generated `.py` files, or default to `<cwd>/generated/<scenario>/`?
+- Use a single model for both generation + repair (current `connect_to_argo` only returns one), or extend `connect_to_argo` to take two model names?
 
 **Q5.** Should I apply the low-effort lint/style fixes (#6, #14–18) as a single cleanup pass, or leave them for pre-commit to handle on the next commit?
 
@@ -4861,6 +5041,7 @@ Let me know which findings to act on and I'll exit plan mode.
 Here are my responses:
 
 Bugs:
+
 1. This regression is correct because Argo resolves to a different name
 2. This should be fixed
 3. This is correct behavior for now to enable correct replication from the notebooks
@@ -4870,9 +5051,9 @@ Bugs:
 7. Switch this to a RuntimeError and log it as well
 8. Improve the `connect_to_argo` method so that the handshake is more robust, but keep it simple. I would prefer for just having the call fail and returning an error if it does or if it returns an empty string
 9. This is the correct endpoint. However, make this a command line flag as well as this can change in the future
-10: Argo uses `anl_username` as the API key. Change the semantics in the LLM implementation
-11. Leverage the logger to write the system_prompt and user_prompt for every call made. Set these to be debug
-12. I'm not thrilled about `agent.py`. Lets delete this file
+   10: Argo uses `anl_username` as the API key. Change the semantics in the LLM implementation
+10. Leverage the logger to write the system_prompt and user_prompt for every call made. Set these to be debug
+11. I'm not thrilled about `agent.py`. Lets delete this file
 
 Do not touch smells
 
@@ -4894,64 +5075,66 @@ Implement this plan
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix --log-level default to info (Bug 2)",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Add --screenshot-path CLI arg and resolve downstream (Bug 4)",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Switch check_data substring to in-operator (Bug 6)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Switch handshake error to RuntimeError + log it (Bug 7)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Improve connect_to_argo handshake robustness (Bug 8)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Make endpoint a CLI flag (Bug 9)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Rename anl_username semantics in llm.py (Bug 10)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Wire logger into OpenAIModel.chat with DEBUG prompts (Bug 11)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Delete chatvis/agent.py and its tests (Bug 12)",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Verify imports, tests, and CLI help",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix --log-level default to info (Bug 2)",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Add --screenshot-path CLI arg and resolve downstream (Bug 4)",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Switch check_data substring to in-operator (Bug 6)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Switch handshake error to RuntimeError + log it (Bug 7)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Improve connect_to_argo handshake robustness (Bug 8)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Make endpoint a CLI flag (Bug 9)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Rename anl_username semantics in llm.py (Bug 10)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Wire logger into OpenAIModel.chat with DEBUG prompts (Bug 11)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Delete chatvis/agent.py and its tests (Bug 12)",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Verify imports, tests, and CLI help",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -5016,14 +5199,16 @@ I'll start with the deletions and module edits, then update `main.py` last since
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "rm /home/nicholas/Documents/projects/ChatVis/chatvis/agent.py /home/nicholas/Documents/projects/ChatVis/tests/test_agent.py && ls /home/nicholas/Documents/projects/ChatVis/chatvis /home/nicholas/Documents/projects/ChatVis/tests",
-  "description": "Delete agent.py and its tests"
+    "command": "rm /home/nicholas/Documents/projects/ChatVis/chatvis/agent.py /home/nicholas/Documents/projects/ChatVis/tests/test_agent.py && ls /home/nicholas/Documents/projects/ChatVis/chatvis /home/nicholas/Documents/projects/ChatVis/tests",
+    "description": "Delete agent.py and its tests"
 }
 ```
 
 **Output:**
+
 ```
 rm: cannot remove '/home/nicholas/Documents/projects/ChatVis/tests/test_agent.py': No such file or directory
 
@@ -5036,14 +5221,16 @@ rm: cannot remove '/home/nicholas/Documents/projects/ChatVis/tests/test_agent.py
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "ls /home/nicholas/Documents/projects/ChatVis/chatvis /home/nicholas/Documents/projects/ChatVis/tests 2>&1",
-  "description": "Inspect remaining dirs"
+    "command": "ls /home/nicholas/Documents/projects/ChatVis/chatvis /home/nicholas/Documents/projects/ChatVis/tests 2>&1",
+    "description": "Inspect remaining dirs"
 }
 ```
 
 **Output:**
+
 ```
 ls: cannot access '/home/nicholas/Documents/projects/ChatVis/tests': No such file or directory
 /home/nicholas/Documents/projects/ChatVis/chatvis:
@@ -5065,14 +5252,16 @@ utils.py
 **Tool: write**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py",
-  "content": "from logging import Logger\nfrom pathlib import Path\n\nfrom openai import Client\nfrom openai.types.chat import ChatCompletion\n\nfrom chatvis.documents.code_generation import CodeGenerationPrompt\nfrom chatvis.documents.code_improvement import CodeImprovementPrompt\nfrom chatvis.documents.prompt_generation import PromptGenerationPrompt\n\n\nclass OpenAIModel:\n    def __init__(\n        self,\n        logger: Logger,\n        api_key: str,\n        model_name: str,\n        endpoint: str,\n        seed: int = 42,\n    ) -> None:\n        # Argo authenticates by ANL username supplied via the OpenAI client's\n        # ``api_key`` parameter. The name ``api_key`` mirrors that contract.\n        self.logger: Logger = logger\n        self.endpoint: str = endpoint\n        self.seed: int = seed\n        self.model_name: str = model_name.lower()\n        self.client: Client = Client(\n            base_url=self.endpoint,\n            api_key=api_key,\n        )\n\n    def chat(\n        self,\n        system_prompt: str,\n        user_prompt: str,\n    ) -> ChatCompletion:\n        self.logger.debug(\"LLM system_prompt: %s\", system_prompt)\n        self.logger.debug(\"LLM user_prompt: %s\", user_prompt)\n        return self.client.chat.completions.create(\n            model=self.model_name,\n            seed=self.seed,\n            n=1,\n            messages=[\n                {\"role\": \"system\", \"content\": system_prompt},\n                {\"role\": \"user\", \"content\": user_prompt},\n            ],\n        )\n\n\ndef prompt_generation(\n    pgp: PromptGenerationPrompt,\n    openai: OpenAIModel,\n    input_path: Path,\n    output_path: Path,\n) -> ChatCompletion:\n    user_prompt: str = pgp.user_prompt.substitute(\n        input_path=input_path,\n        output_path=output_path,\n        input_prompt=pgp.example_prompt.input_prompt,\n        generated_prompt=pgp.example_prompt.generated_prompt,\n    )\n\n    return openai.chat(system_prompt=pgp.system_prompt, user_prompt=user_prompt)\n\n\ndef code_generation(\n    generated_prompt: str,\n    cgp: CodeGenerationPrompt,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    return openai.chat(\n        system_prompt=cgp.system_prompt,\n        user_prompt=generated_prompt,\n    )\n\n\ndef code_improvement(\n    generated_prompt: str,\n    generated_code: str,\n    shell_errors: str,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    cip: CodeImprovementPrompt = CodeImprovementPrompt()\n    user_prompt: str = cip.user_prompt.substitute(\n        errors=shell_errors,\n        python_script=generated_code,\n        prompt=generated_prompt,\n    )\n\n    return openai.chat(system_prompt=cip.system_prompt, user_prompt=user_prompt)\n\n\ndef parse_response(response: ChatCompletion) -> str:\n    content: str | None = response.choices[0].message.content\n\n    if content is None:\n        content = \"\"\n\n    return content\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py",
+    "content": "from logging import Logger\nfrom pathlib import Path\n\nfrom openai import Client\nfrom openai.types.chat import ChatCompletion\n\nfrom chatvis.documents.code_generation import CodeGenerationPrompt\nfrom chatvis.documents.code_improvement import CodeImprovementPrompt\nfrom chatvis.documents.prompt_generation import PromptGenerationPrompt\n\n\nclass OpenAIModel:\n    def __init__(\n        self,\n        logger: Logger,\n        api_key: str,\n        model_name: str,\n        endpoint: str,\n        seed: int = 42,\n    ) -> None:\n        # Argo authenticates by ANL username supplied via the OpenAI client's\n        # ``api_key`` parameter. The name ``api_key`` mirrors that contract.\n        self.logger: Logger = logger\n        self.endpoint: str = endpoint\n        self.seed: int = seed\n        self.model_name: str = model_name.lower()\n        self.client: Client = Client(\n            base_url=self.endpoint,\n            api_key=api_key,\n        )\n\n    def chat(\n        self,\n        system_prompt: str,\n        user_prompt: str,\n    ) -> ChatCompletion:\n        self.logger.debug(\"LLM system_prompt: %s\", system_prompt)\n        self.logger.debug(\"LLM user_prompt: %s\", user_prompt)\n        return self.client.chat.completions.create(\n            model=self.model_name,\n            seed=self.seed,\n            n=1,\n            messages=[\n                {\"role\": \"system\", \"content\": system_prompt},\n                {\"role\": \"user\", \"content\": user_prompt},\n            ],\n        )\n\n\ndef prompt_generation(\n    pgp: PromptGenerationPrompt,\n    openai: OpenAIModel,\n    input_path: Path,\n    output_path: Path,\n) -> ChatCompletion:\n    user_prompt: str = pgp.user_prompt.substitute(\n        input_path=input_path,\n        output_path=output_path,\n        input_prompt=pgp.example_prompt.input_prompt,\n        generated_prompt=pgp.example_prompt.generated_prompt,\n    )\n\n    return openai.chat(system_prompt=pgp.system_prompt, user_prompt=user_prompt)\n\n\ndef code_generation(\n    generated_prompt: str,\n    cgp: CodeGenerationPrompt,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    return openai.chat(\n        system_prompt=cgp.system_prompt,\n        user_prompt=generated_prompt,\n    )\n\n\ndef code_improvement(\n    generated_prompt: str,\n    generated_code: str,\n    shell_errors: str,\n    openai: OpenAIModel,\n) -> ChatCompletion:\n    cip: CodeImprovementPrompt = CodeImprovementPrompt()\n    user_prompt: str = cip.user_prompt.substitute(\n        errors=shell_errors,\n        python_script=generated_code,\n        prompt=generated_prompt,\n    )\n\n    return openai.chat(system_prompt=cip.system_prompt, user_prompt=user_prompt)\n\n\ndef parse_response(response: ChatCompletion) -> str:\n    content: str | None = response.choices[0].message.content\n\n    if content is None:\n        content = \"\"\n\n    return content\n"
 }
 ```
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -5084,64 +5273,66 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix --log-level default to info (Bug 2)",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Add --screenshot-path CLI arg and resolve downstream (Bug 4)",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Switch check_data substring to in-operator (Bug 6)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Switch handshake error to RuntimeError + log it (Bug 7)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Improve connect_to_argo handshake robustness (Bug 8)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Make endpoint a CLI flag (Bug 9)",
-      "status": "pending",
-      "priority": "medium"
-    },
-    {
-      "content": "Rename anl_username semantics in llm.py (Bug 10)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Wire logger into OpenAIModel.chat with DEBUG prompts (Bug 11)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Delete chatvis/agent.py and its tests (Bug 12)",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Verify imports, tests, and CLI help",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix --log-level default to info (Bug 2)",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Add --screenshot-path CLI arg and resolve downstream (Bug 4)",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Switch check_data substring to in-operator (Bug 6)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Switch handshake error to RuntimeError + log it (Bug 7)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Improve connect_to_argo handshake robustness (Bug 8)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Make endpoint a CLI flag (Bug 9)",
+            "status": "pending",
+            "priority": "medium"
+        },
+        {
+            "content": "Rename anl_username semantics in llm.py (Bug 10)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Wire logger into OpenAIModel.chat with DEBUG prompts (Bug 11)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Delete chatvis/agent.py and its tests (Bug 12)",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Verify imports, tests, and CLI help",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -5210,14 +5401,16 @@ For Bug 4 (`--screenshot-path`): add a required `--screenshot-path` flag (mirror
 **Tool: write**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
-  "content": "import logging\nimport sys\nfrom argparse import ArgumentParser, Namespace\nfrom logging import Logger\nfrom pathlib import Path\n\nfrom openai.types.chat import ChatCompletion\n\nfrom chatvis.documents.prompt_generation import PromptGenerationPrompt\n\nfrom chatvis.llm import OpenAIModel, parse_response, prompt_generation\nfrom chatvis.logger import configure_logging\n\nMODELS: list[str] = [\"gpt4o\"]\nLOG_LEVELS: list[str] = [\"debug\", \"info\", \"warning\", \"error\", \"critical\"]\nDEFAULT_LOG_LEVEL: str = \"info\"\nDEFAULT_ENDPOINT: str = \"https://apps.inside.anl.gov/argoapi/v1\"\nSCENARIOS: list[str] = [\n    \"ml-dvr\",\n    \"ml-iso\",\n    \"ml-slice-iso\",\n    \"points-surf-clip\",\n    \"stream-glyph\",\n]\n\n\ndef cli_parser() -> Namespace:\n    parser: ArgumentParser = ArgumentParser(\n        prog=\"chatvis\",\n        description=\"Automating Scientific Visualization with a Large Language Model\",\n        epilog=\"https://doi.org/10.1109/SCW63240.2024.00014\",\n    )\n\n    parser.add_argument(\n        \"--scenario\",\n        choices=SCENARIOS,\n        default=SCENARIOS[0],\n        help=\"ChatVis paper scenario to execute (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--data-filepath\",\n        type=lambda x: Path(x).absolute(),\n        required=True,\n        help=\"Path to data file to evaluate\",\n    )\n    parser.add_argument(\n        \"--screenshot-path\",\n        type=lambda x: Path(x).absolute(),\n        required=True,\n        help=\"Path where the generated ParaView screenshot should be written\",\n    )\n    parser.add_argument(\n        \"--model\",\n        choices=MODELS,\n        default=MODELS[0],\n        help=\"LLM to leverage (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--username\",\n        type=str,\n        required=True,\n        help=\"Argonne National Labs username\",\n    )\n    parser.add_argument(\n        \"--endpoint\",\n        type=str,\n        default=DEFAULT_ENDPOINT,\n        help=\"LLM API endpoint URL (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--log-file\",\n        action=\"store_true\",\n        help=\"Also write log output to <cwd>/chatvis_<unix-seconds>.log\",\n    )\n    parser.add_argument(\n        \"--log-level\",\n        choices=LOG_LEVELS,\n        default=DEFAULT_LOG_LEVEL,\n        help=\"Logging verbosity (default: %(default)s)\",\n    )\n\n    return parser.parse_args()\n\n\ndef setup_logger(log_to_file: bool, log_level: str) -> Logger:\n    # Configure logger\n    log_path: Path | None = configure_logging(\n        log_to_file=log_to_file,\n        level=logging.getLevelNamesMapping()[log_level.upper()],\n    )\n\n    # Get the application logger\n    logger: Logger = logging.getLogger(\"chatvis\")\n\n    # Log to file\n    if log_path is not None:\n        logger.info(\"Logging to %s\", log_path)\n\n    # Return application logger\n    return logger\n\n\ndef check_data(data_filepath: Path, scenario: str) -> bool:\n    # Check ML scenarios\n    if (scenario[0:2] == \"ml\") and (data_filepath.name == \"ml-100.vtk\"):\n        return True\n\n    # Check Can scenarios\n    if (\"points\" in scenario) and (data_filepath.name == \"can_points.ex2\"):\n        return True\n\n    # Check Disk scenarios\n    if (\"stream\" in scenario) and (data_filepath.name == \"disk.ex2\"):\n        return True\n\n    return False\n\n\ndef connect_to_argo(\n    logger: Logger,\n    anl_username: str,\n    endpoint: str,\n    model_name: str = \"gpt4o\",\n) -> OpenAIModel:\n    # Setup object\n    model: OpenAIModel = OpenAIModel(\n        logger=logger,\n        api_key=anl_username,\n        model_name=model_name,\n        endpoint=endpoint,\n    )\n\n    # Handshake: any exception from the client OR an empty response is a failure.\n    # We do not string-compare LLM output -- it is nondeterministic.\n    try:\n        resp: ChatCompletion = model.chat(\n            system_prompt='Respond with \"Hello World\"',\n            user_prompt=\"Hello\",\n        )\n    except Exception as exc:\n        logger.error(\"Argo handshake failed: %s\", exc)\n        raise RuntimeError(\"Argo handshake call raised an exception\") from exc\n\n    content: str = parse_response(response=resp).strip()\n    if not content:\n        logger.error(\"Argo handshake returned an empty response\")\n        raise RuntimeError(\"Argo handshake returned an empty response\")\n\n    return model\n\n\ndef generate_improved_prompt(\n    logger: Logger,\n    pgp: PromptGenerationPrompt,\n    data_filepath: Path,\n    screenshot_path: Path,\n    llm: OpenAIModel,\n) -> str:\n    resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)\n    return parse_response(response=resp)\n\ndef main() -> None:\n    # Parse command line\n    cli_args: Namespace = cli_parser()\n\n    # Setup logger\n    logger: Logger = setup_logger(\n        log_to_file=cli_args.log_file,\n        log_level=cli_args.log_level,\n    )\n\n    # Logg command line args\n    logger.debug(\"Command line args:  %s\", cli_args.__dict__)\n\n    # Check if command line args are compatible with one another\n    if (\n        check_data(\n            data_filepath=cli_args.data_filepath,\n            scenario=cli_args.scenario,\n        )\n        is False\n    ):\n        logger.error(\"Data file not compatible with this scenario\")\n        sys.exit(1)\n    logger.info(\n        \"Data file and scenario compatible: %s %s\",\n        cli_args.data_filepath,\n        cli_args.scenario,\n    )\n\n    # Resolve screenshot output path (CLI-provided, already absolute)\n    screenshot_path: Path = cli_args.screenshot_path\n    logger.info(\"Screenshot output path: %s\", screenshot_path)\n\n    # Connect to Argo\n    llm: OpenAIModel = connect_to_argo(\n        logger=logger,\n        anl_username=cli_args.username,\n        endpoint=cli_args.endpoint,\n        model_name=cli_args.model,\n    )\n    logger.info(\"Argo handshake successful\")\n\n    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\"scenario 'ml-dvr' is not yet implemented\")\n        case \"ml-iso\":\n            raise NotImplementedError(\"scenario 'ml-iso' is not yet implemented\")\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\"scenario 'ml-slice-iso' is not yet implemented\")\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\"scenario 'stream-glyph' is not yet implemented\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
+    "content": "import logging\nimport sys\nfrom argparse import ArgumentParser, Namespace\nfrom logging import Logger\nfrom pathlib import Path\n\nfrom openai.types.chat import ChatCompletion\n\nfrom chatvis.documents.prompt_generation import PromptGenerationPrompt\n\nfrom chatvis.llm import OpenAIModel, parse_response, prompt_generation\nfrom chatvis.logger import configure_logging\n\nMODELS: list[str] = [\"gpt4o\"]\nLOG_LEVELS: list[str] = [\"debug\", \"info\", \"warning\", \"error\", \"critical\"]\nDEFAULT_LOG_LEVEL: str = \"info\"\nDEFAULT_ENDPOINT: str = \"https://apps.inside.anl.gov/argoapi/v1\"\nSCENARIOS: list[str] = [\n    \"ml-dvr\",\n    \"ml-iso\",\n    \"ml-slice-iso\",\n    \"points-surf-clip\",\n    \"stream-glyph\",\n]\n\n\ndef cli_parser() -> Namespace:\n    parser: ArgumentParser = ArgumentParser(\n        prog=\"chatvis\",\n        description=\"Automating Scientific Visualization with a Large Language Model\",\n        epilog=\"https://doi.org/10.1109/SCW63240.2024.00014\",\n    )\n\n    parser.add_argument(\n        \"--scenario\",\n        choices=SCENARIOS,\n        default=SCENARIOS[0],\n        help=\"ChatVis paper scenario to execute (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--data-filepath\",\n        type=lambda x: Path(x).absolute(),\n        required=True,\n        help=\"Path to data file to evaluate\",\n    )\n    parser.add_argument(\n        \"--screenshot-path\",\n        type=lambda x: Path(x).absolute(),\n        required=True,\n        help=\"Path where the generated ParaView screenshot should be written\",\n    )\n    parser.add_argument(\n        \"--model\",\n        choices=MODELS,\n        default=MODELS[0],\n        help=\"LLM to leverage (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--username\",\n        type=str,\n        required=True,\n        help=\"Argonne National Labs username\",\n    )\n    parser.add_argument(\n        \"--endpoint\",\n        type=str,\n        default=DEFAULT_ENDPOINT,\n        help=\"LLM API endpoint URL (default: %(default)s)\",\n    )\n    parser.add_argument(\n        \"--log-file\",\n        action=\"store_true\",\n        help=\"Also write log output to <cwd>/chatvis_<unix-seconds>.log\",\n    )\n    parser.add_argument(\n        \"--log-level\",\n        choices=LOG_LEVELS,\n        default=DEFAULT_LOG_LEVEL,\n        help=\"Logging verbosity (default: %(default)s)\",\n    )\n\n    return parser.parse_args()\n\n\ndef setup_logger(log_to_file: bool, log_level: str) -> Logger:\n    # Configure logger\n    log_path: Path | None = configure_logging(\n        log_to_file=log_to_file,\n        level=logging.getLevelNamesMapping()[log_level.upper()],\n    )\n\n    # Get the application logger\n    logger: Logger = logging.getLogger(\"chatvis\")\n\n    # Log to file\n    if log_path is not None:\n        logger.info(\"Logging to %s\", log_path)\n\n    # Return application logger\n    return logger\n\n\ndef check_data(data_filepath: Path, scenario: str) -> bool:\n    # Check ML scenarios\n    if (scenario[0:2] == \"ml\") and (data_filepath.name == \"ml-100.vtk\"):\n        return True\n\n    # Check Can scenarios\n    if (\"points\" in scenario) and (data_filepath.name == \"can_points.ex2\"):\n        return True\n\n    # Check Disk scenarios\n    if (\"stream\" in scenario) and (data_filepath.name == \"disk.ex2\"):\n        return True\n\n    return False\n\n\ndef connect_to_argo(\n    logger: Logger,\n    anl_username: str,\n    endpoint: str,\n    model_name: str = \"gpt4o\",\n) -> OpenAIModel:\n    # Setup object\n    model: OpenAIModel = OpenAIModel(\n        logger=logger,\n        api_key=anl_username,\n        model_name=model_name,\n        endpoint=endpoint,\n    )\n\n    # Handshake: any exception from the client OR an empty response is a failure.\n    # We do not string-compare LLM output -- it is nondeterministic.\n    try:\n        resp: ChatCompletion = model.chat(\n            system_prompt='Respond with \"Hello World\"',\n            user_prompt=\"Hello\",\n        )\n    except Exception as exc:\n        logger.error(\"Argo handshake failed: %s\", exc)\n        raise RuntimeError(\"Argo handshake call raised an exception\") from exc\n\n    content: str = parse_response(response=resp).strip()\n    if not content:\n        logger.error(\"Argo handshake returned an empty response\")\n        raise RuntimeError(\"Argo handshake returned an empty response\")\n\n    return model\n\n\ndef generate_improved_prompt(\n    logger: Logger,\n    pgp: PromptGenerationPrompt,\n    data_filepath: Path,\n    screenshot_path: Path,\n    llm: OpenAIModel,\n) -> str:\n    resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)\n    return parse_response(response=resp)\n\ndef main() -> None:\n    # Parse command line\n    cli_args: Namespace = cli_parser()\n\n    # Setup logger\n    logger: Logger = setup_logger(\n        log_to_file=cli_args.log_file,\n        log_level=cli_args.log_level,\n    )\n\n    # Logg command line args\n    logger.debug(\"Command line args:  %s\", cli_args.__dict__)\n\n    # Check if command line args are compatible with one another\n    if (\n        check_data(\n            data_filepath=cli_args.data_filepath,\n            scenario=cli_args.scenario,\n        )\n        is False\n    ):\n        logger.error(\"Data file not compatible with this scenario\")\n        sys.exit(1)\n    logger.info(\n        \"Data file and scenario compatible: %s %s\",\n        cli_args.data_filepath,\n        cli_args.scenario,\n    )\n\n    # Resolve screenshot output path (CLI-provided, already absolute)\n    screenshot_path: Path = cli_args.screenshot_path\n    logger.info(\"Screenshot output path: %s\", screenshot_path)\n\n    # Connect to Argo\n    llm: OpenAIModel = connect_to_argo(\n        logger=logger,\n        anl_username=cli_args.username,\n        endpoint=cli_args.endpoint,\n        model_name=cli_args.model,\n    )\n    logger.info(\"Argo handshake successful\")\n\n    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\"scenario 'ml-dvr' is not yet implemented\")\n        case \"ml-iso\":\n            raise NotImplementedError(\"scenario 'ml-iso' is not yet implemented\")\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\"scenario 'ml-slice-iso' is not yet implemented\")\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\"scenario 'stream-glyph' is not yet implemented\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
 }
 ```
 
 **Output:**
+
 ```
 Wrote file successfully.
 ```
@@ -5229,64 +5422,66 @@ Wrote file successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Fix --log-level default to info (Bug 2)",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Add --screenshot-path CLI arg and resolve downstream (Bug 4)",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Switch check_data substring to in-operator (Bug 6)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Switch handshake error to RuntimeError + log it (Bug 7)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Improve connect_to_argo handshake robustness (Bug 8)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Make endpoint a CLI flag (Bug 9)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Rename anl_username semantics in llm.py (Bug 10)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Wire logger into OpenAIModel.chat with DEBUG prompts (Bug 11)",
-      "status": "completed",
-      "priority": "medium"
-    },
-    {
-      "content": "Delete chatvis/agent.py and its tests (Bug 12)",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Verify imports, tests, and CLI help",
-      "status": "in_progress",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Fix --log-level default to info (Bug 2)",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Add --screenshot-path CLI arg and resolve downstream (Bug 4)",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Switch check_data substring to in-operator (Bug 6)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Switch handshake error to RuntimeError + log it (Bug 7)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Improve connect_to_argo handshake robustness (Bug 8)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Make endpoint a CLI flag (Bug 9)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Rename anl_username semantics in llm.py (Bug 10)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Wire logger into OpenAIModel.chat with DEBUG prompts (Bug 11)",
+            "status": "completed",
+            "priority": "medium"
+        },
+        {
+            "content": "Delete chatvis/agent.py and its tests (Bug 12)",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Verify imports, tests, and CLI help",
+            "status": "in_progress",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -5350,7 +5545,7 @@ Wrote file successfully.
 
 ## User
 
-Ok, review @chatvis/main.py  and @chatvis/documents/ Implement the improved prompt generation feature for all scenarios
+Ok, review @chatvis/main.py and @chatvis/documents/ Implement the improved prompt generation feature for all scenarios
 
 ---
 
@@ -5361,13 +5556,15 @@ Plan mode active — read-only. Let me inspect the relevant documents to ground 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py</path>
 <type>file</type>
@@ -5526,13 +5723,15 @@ Plan mode active — read-only. Let me inspect the relevant documents to ground 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py</path>
 <type>file</type>
@@ -5678,13 +5877,15 @@ Plan mode active — read-only. Let me inspect the relevant documents to ground 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py</path>
 <type>file</type>
@@ -5698,13 +5899,15 @@ Plan mode active — read-only. Let me inspect the relevant documents to ground 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py</path>
 <type>file</type>
@@ -5837,15 +6040,15 @@ The **only** thing missing is the dispatch: `main()` currently raises `NotImplem
 
 4. **`PROMPT_GENERATION_EXAMPLES["points-surf-clip"].generated_prompt` is the empty string** (line 103 of `prompt_generation_examples.py`). The Template substitution will succeed (no `KeyError`), but the resulting LLM prompt will include `Here is an example generated prompt for the example user prompt:` followed by literally nothing. This is a content/data bug in the documents, not in the wiring. The user previously flagged "do not touch smells" in `main.py`; the documents bugs were called out in earlier reviews and explicitly deferred. I will **not** fix this as part of this task, but I'm flagging it so you know the points-surf-clip prompt will be weaker than the others. (See Q3.)
 
-5. **`PROMPT_GENERATION_EXAMPLES` cross-scenario contamination:** `ml-iso`, `ml-slice-iso`, `ml-dvr`, and `stream-glyph` all use the *same* `input_prompt` (the streamline-tracing one), and all `generated_prompt` examples except `points-surf-clip` describe streamline tracing. So the few-shot examples don't match the scenario being prompted. This is the same kind of pre-existing data issue as #4. Not in scope to fix; flagging only.
+5. **`PROMPT_GENERATION_EXAMPLES` cross-scenario contamination:** `ml-iso`, `ml-slice-iso`, `ml-dvr`, and `stream-glyph` all use the _same_ `input_prompt` (the streamline-tracing one), and all `generated_prompt` examples except `points-surf-clip` describe streamline tracing. So the few-shot examples don't match the scenario being prompted. This is the same kind of pre-existing data issue as #4. Not in scope to fix; flagging only.
 
 6. **`OpenAIModel.model_name = "gpt4o"`** with `.lower()` — fine, settled in prior reviews (Argo proxy uses unhyphenated ID). No action.
 
 7. **What does "implement the improved prompt generation feature for all scenarios" mean concretely?** Two plausible interpretations:
-   - **(a)** Wire `generate_improved_prompt` into `main()` so that, given any `--scenario`, the CLI invokes the existing helper and produces the refined prompt string. **Stop there** — do not also invoke `code_generation` or the agent loop. This is the smallest change that fulfills the literal wording.
-   - **(b)** Same as (a), plus continue all the way through `code_generation` and write the resulting Python script to disk. This was previously the agent loop's job; that file was deleted at your request, so I'd be rebuilding parts of it.
+    - **(a)** Wire `generate_improved_prompt` into `main()` so that, given any `--scenario`, the CLI invokes the existing helper and produces the refined prompt string. **Stop there** — do not also invoke `code_generation` or the agent loop. This is the smallest change that fulfills the literal wording.
+    - **(b)** Same as (a), plus continue all the way through `code_generation` and write the resulting Python script to disk. This was previously the agent loop's job; that file was deleted at your request, so I'd be rebuilding parts of it.
 
-   I read the request as **(a)**: the user is shipping the pipeline one stage at a time and just asked for the prompt-generation stage to land for every scenario. The next request will likely be "now implement code generation for all scenarios." See Q1.
+    I read the request as **(a)**: the user is shipping the pipeline one stage at a time and just asked for the prompt-generation stage to land for every scenario. The next request will likely be "now implement code generation for all scenarios." See Q1.
 
 ## Plan
 
@@ -5860,18 +6063,19 @@ Replace the `match cli_args.scenario:` block in `chatvis/main.py::main` with a s
 1. Add import: `from chatvis.documents.prompt_generation import PROMPT_GENERATION_PROMPTS, PromptGenerationPrompt` — extending the existing line-9 import rather than adding a new one (keeps the existing `PromptGenerationPrompt` type annotation usable and avoids a new isort group).
 
 2. Replace lines 206–218 (the entire `match` block) with:
-   ```python
-   pgp: PromptGenerationPrompt = PROMPT_GENERATION_PROMPTS[cli_args.scenario]
-   logger.info("Generating improved prompt for scenario: %s", cli_args.scenario)
-   improved_prompt: str = generate_improved_prompt(
-       logger=logger,
-       pgp=pgp,
-       data_filepath=cli_args.data_filepath,
-       screenshot_path=screenshot_path,
-       llm=llm,
-   )
-   logger.info("Improved prompt:\n%s", improved_prompt)
-   ```
+
+    ```python
+    pgp: PromptGenerationPrompt = PROMPT_GENERATION_PROMPTS[cli_args.scenario]
+    logger.info("Generating improved prompt for scenario: %s", cli_args.scenario)
+    improved_prompt: str = generate_improved_prompt(
+        logger=logger,
+        pgp=pgp,
+        data_filepath=cli_args.data_filepath,
+        screenshot_path=screenshot_path,
+        llm=llm,
+    )
+    logger.info("Improved prompt:\n%s", improved_prompt)
+    ```
 
 3. No changes to `generate_improved_prompt` itself, no changes to `chatvis/llm.py`, no changes to `chatvis/documents/`, no new files.
 
@@ -5893,15 +6097,15 @@ Replace the `match cli_args.scenario:` block in `chatvis/main.py::main` with a s
 - `uv run python -m chatvis.main --help` — confirm new behavior surface unchanged.
 - Static check: import-only smoke (`uv run python -c "from chatvis.main import main; print('ok')"`).
 - End-to-end requires a live Argo session, so won't run automatically. Manual invocation would look like:
-  ```
-  uv run python -m chatvis.main \
-      --scenario ml-iso \
-      --data-filepath data/ml-100.vtk \
-      --screenshot-path /tmp/ml-iso.png \
-      --username <user> \
-      --log-level info
-  ```
-  Expected: handshake succeeds, then a single INFO line `Improved prompt:` followed by the LLM-refined prompt.
+    ```
+    uv run python -m chatvis.main \
+        --scenario ml-iso \
+        --data-filepath data/ml-100.vtk \
+        --screenshot-path /tmp/ml-iso.png \
+        --username <user> \
+        --log-level info
+    ```
+    Expected: handshake succeeds, then a single INFO line `Improved prompt:` followed by the LLM-refined prompt.
 
 ### Open questions
 
@@ -5934,29 +6138,31 @@ Implement this plan
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Wire generate_improved_prompt into main() for all scenarios",
-      "status": "in_progress",
-      "priority": "high"
-    },
-    {
-      "content": "Raise on empty generated_prompt example",
-      "status": "pending",
-      "priority": "high"
-    },
-    {
-      "content": "Verify import + CLI help",
-      "status": "pending",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Wire generate_improved_prompt into main() for all scenarios",
+            "status": "in_progress",
+            "priority": "high"
+        },
+        {
+            "content": "Raise on empty generated_prompt example",
+            "status": "pending",
+            "priority": "high"
+        },
+        {
+            "content": "Verify import + CLI help",
+            "status": "pending",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -5982,6 +6188,7 @@ Implement this plan
 ## Assistant (Build · Claude Opus 4.7 · 8.9s)
 
 Two edits to `chatvis/main.py`:
+
 1. Extend the existing `chatvis.documents.prompt_generation` import to include `PROMPT_GENERATION_PROMPTS`.
 2. Replace the `match` block with the dictionary-driven `generate_improved_prompt` call.
 
@@ -5990,15 +6197,17 @@ For Q3 (raise on empty example), I'll add an early check inside `generate_improv
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
-  "oldString": "from chatvis.documents.prompt_generation import PromptGenerationPrompt",
-  "newString": "from chatvis.documents.prompt_generation import (\n    PROMPT_GENERATION_PROMPTS,\n    PromptGenerationPrompt,\n)"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
+    "oldString": "from chatvis.documents.prompt_generation import PromptGenerationPrompt",
+    "newString": "from chatvis.documents.prompt_generation import (\n    PROMPT_GENERATION_PROMPTS,\n    PromptGenerationPrompt,\n)"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -6010,15 +6219,17 @@ Edit applied successfully.
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
-  "oldString": "def generate_improved_prompt(\n    logger: Logger,\n    pgp: PromptGenerationPrompt,\n    data_filepath: Path,\n    screenshot_path: Path,\n    llm: OpenAIModel,\n) -> str:\n    resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)\n    content: str = parse_response(response=resp)\n    logger.debug(\"Parsed `Improved Prompt Generation` response: %s\", content)\n    return content",
-  "newString": "def generate_improved_prompt(\n    logger: Logger,\n    pgp: PromptGenerationPrompt,\n    data_filepath: Path,\n    screenshot_path: Path,\n    llm: OpenAIModel,\n) -> str:\n    # Fail fast on degraded few-shot examples rather than sending a\n    # half-empty prompt to the LLM.\n    if not pgp.example_prompt.generated_prompt.strip():\n        raise ValueError(\n            \"PromptGenerationExample.generated_prompt is empty; refusing to \"\n            \"send a degraded few-shot prompt to the LLM\"\n        )\n\n    resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)\n    content: str = parse_response(response=resp)\n    logger.debug(\"Parsed `Improved Prompt Generation` response: %s\", content)\n    return content"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
+    "oldString": "def generate_improved_prompt(\n    logger: Logger,\n    pgp: PromptGenerationPrompt,\n    data_filepath: Path,\n    screenshot_path: Path,\n    llm: OpenAIModel,\n) -> str:\n    resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)\n    content: str = parse_response(response=resp)\n    logger.debug(\"Parsed `Improved Prompt Generation` response: %s\", content)\n    return content",
+    "newString": "def generate_improved_prompt(\n    logger: Logger,\n    pgp: PromptGenerationPrompt,\n    data_filepath: Path,\n    screenshot_path: Path,\n    llm: OpenAIModel,\n) -> str:\n    # Fail fast on degraded few-shot examples rather than sending a\n    # half-empty prompt to the LLM.\n    if not pgp.example_prompt.generated_prompt.strip():\n        raise ValueError(\n            \"PromptGenerationExample.generated_prompt is empty; refusing to \"\n            \"send a degraded few-shot prompt to the LLM\"\n        )\n\n    resp: ChatCompletion = prompt_generation(pgp=pgp, openai=llm, input_path=data_filepath, output_path=screenshot_path,)\n    content: str = parse_response(response=resp)\n    logger.debug(\"Parsed `Improved Prompt Generation` response: %s\", content)\n    return content"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -6030,15 +6241,17 @@ Edit applied successfully.
 **Tool: edit**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
-  "oldString": "    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\"scenario 'ml-dvr' is not yet implemented\")\n        case \"ml-iso\":\n            raise NotImplementedError(\"scenario 'ml-iso' is not yet implemented\")\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\"scenario 'ml-slice-iso' is not yet implemented\")\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\"scenario 'stream-glyph' is not yet implemented\")",
-  "newString": "    # Improved prompt generation (single dispatch covers every scenario).\n    pgp: PromptGenerationPrompt = PROMPT_GENERATION_PROMPTS[cli_args.scenario]\n    logger.info(\"Generating improved prompt for scenario: %s\", cli_args.scenario)\n    improved_prompt: str = generate_improved_prompt(\n        logger=logger,\n        pgp=pgp,\n        data_filepath=cli_args.data_filepath,\n        screenshot_path=screenshot_path,\n        llm=llm,\n    )\n    logger.info(\"Improved prompt:\\n%s\", improved_prompt)"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py",
+    "oldString": "    match cli_args.scenario:\n        case \"ml-dvr\":\n            raise NotImplementedError(\"scenario 'ml-dvr' is not yet implemented\")\n        case \"ml-iso\":\n            raise NotImplementedError(\"scenario 'ml-iso' is not yet implemented\")\n        case \"ml-slice-iso\":\n            raise NotImplementedError(\"scenario 'ml-slice-iso' is not yet implemented\")\n        case \"points-surf-clip\":\n            raise NotImplementedError(\n                \"scenario 'points-surf-clip' is not yet implemented\"\n            )\n        case \"stream-glyph\":\n            raise NotImplementedError(\"scenario 'stream-glyph' is not yet implemented\")",
+    "newString": "    # Improved prompt generation (single dispatch covers every scenario).\n    pgp: PromptGenerationPrompt = PROMPT_GENERATION_PROMPTS[cli_args.scenario]\n    logger.info(\"Generating improved prompt for scenario: %s\", cli_args.scenario)\n    improved_prompt: str = generate_improved_prompt(\n        logger=logger,\n        pgp=pgp,\n        data_filepath=cli_args.data_filepath,\n        screenshot_path=screenshot_path,\n        llm=llm,\n    )\n    logger.info(\"Improved prompt:\\n%s\", improved_prompt)"
 }
 ```
 
 **Output:**
+
 ```
 Edit applied successfully.
 ```
@@ -6050,29 +6263,31 @@ Edit applied successfully.
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Wire generate_improved_prompt into main() for all scenarios",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Raise on empty generated_prompt example",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Verify import + CLI help",
-      "status": "in_progress",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Wire generate_improved_prompt into main() for all scenarios",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Raise on empty generated_prompt example",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Verify import + CLI help",
+            "status": "in_progress",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -6100,15 +6315,17 @@ Edit applied successfully.
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -c \"from chatvis.main import main, generate_improved_prompt; print('ok')\"",
-  "description": "Import-only smoke check",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -c \"from chatvis.main import main, generate_improved_prompt; print('ok')\"",
+    "description": "Import-only smoke check",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
    Building chatvis @ file:///home/nicholas/Documents/projects/ChatVis
       Built chatvis @ file:///home/nicholas/Documents/projects/ChatVis
@@ -6121,15 +6338,17 @@ ok
 **Tool: bash**
 
 **Input:**
+
 ```json
 {
-  "command": "uv run python -m chatvis.main --help",
-  "description": "Show CLI help to confirm surface unchanged",
-  "workdir": "/home/nicholas/Documents/projects/ChatVis"
+    "command": "uv run python -m chatvis.main --help",
+    "description": "Show CLI help to confirm surface unchanged",
+    "workdir": "/home/nicholas/Documents/projects/ChatVis"
 }
 ```
 
 **Output:**
+
 ```
 usage: chatvis [-h]
                [--scenario {ml-dvr,ml-iso,ml-slice-iso,points-surf-clip,stream-glyph}]
@@ -6170,13 +6389,15 @@ Smoke check and CLI help both clean. Final state of `main.py`:
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/main.py</path>
 <type>file</type>
@@ -6424,29 +6645,31 @@ Smoke check and CLI help both clean. Final state of `main.py`:
 **Tool: todowrite**
 
 **Input:**
+
 ```json
 {
-  "todos": [
-    {
-      "content": "Wire generate_improved_prompt into main() for all scenarios",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Raise on empty generated_prompt example",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "content": "Verify import + CLI help",
-      "status": "completed",
-      "priority": "medium"
-    }
-  ]
+    "todos": [
+        {
+            "content": "Wire generate_improved_prompt into main() for all scenarios",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Raise on empty generated_prompt example",
+            "status": "completed",
+            "priority": "high"
+        },
+        {
+            "content": "Verify import + CLI help",
+            "status": "completed",
+            "priority": "medium"
+        }
+    ]
 }
 ```
 
 **Output:**
+
 ```
 [
   {
@@ -6486,15 +6709,15 @@ Smoke check and CLI help both clean. Final state of `main.py`:
 - `from chatvis.main import main, generate_improved_prompt` imports cleanly.
 - `python -m chatvis.main --help` shows the unchanged CLI surface.
 - End-to-end execution requires a live Argo session and was not exercised. Manual run:
-  ```
-  uv run python -m chatvis.main \
-    --scenario ml-iso \
-    --data-filepath data/ml-100.vtk \
-    --screenshot-path /tmp/ml-iso.png \
-    --username <user>
-  ```
-  Expected (success): handshake INFO line, then `Improved prompt:` followed by the LLM-refined prompt body.
-  Expected (`--scenario points-surf-clip`): `ValueError` from the empty-example guard, before any network call.
+    ```
+    uv run python -m chatvis.main \
+      --scenario ml-iso \
+      --data-filepath data/ml-100.vtk \
+      --screenshot-path /tmp/ml-iso.png \
+      --username <user>
+    ```
+    Expected (success): handshake INFO line, then `Improved prompt:` followed by the LLM-refined prompt body.
+    Expected (`--scenario points-surf-clip`): `ValueError` from the empty-example guard, before any network call.
 
 ## Known pre-existing issues, not touched (explicitly out of scope this round)
 
@@ -6517,13 +6740,15 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/__init__.py</path>
 <type>file</type>
@@ -6537,13 +6762,15 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/main.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/main.py</path>
 <type>file</type>
@@ -6792,13 +7019,15 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/llm.py</path>
 <type>file</type>
@@ -6910,13 +7139,15 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/logger.py</path>
 <type>file</type>
@@ -6997,14 +7228,16 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/utils.py</path>
 <type>file</type>
 <content>
@@ -7066,18 +7299,20 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 
 (End of file - total 55 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/__init__.py</path>
 <type>file</type>
@@ -7091,13 +7326,15 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_examples.py</path>
 <type>file</type>
@@ -7265,14 +7502,16 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_generation.py</path>
 <type>file</type>
 <content>
@@ -7432,19 +7671,21 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 
 (End of file - total 153 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py"
 }
 ```
 
 **Output:**
-```
+
+````
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/code_improvement.py</path>
 <type>file</type>
 <content>
@@ -7483,18 +7724,20 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 
 (End of file - total 32 lines)
 </content>
-```
+````
 
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation_examples.py</path>
 <type>file</type>
@@ -7640,13 +7883,15 @@ Plan mode — read-only. I'll read every file in scope, then deliver a single co
 **Tool: read**
 
 **Input:**
+
 ```json
 {
-  "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py"
+    "filePath": "/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py"
 }
 ```
 
 **Output:**
+
 ```
 <path>/home/nicholas/Documents/projects/ChatVis/chatvis/documents/prompt_generation.py</path>
 <type>file</type>
@@ -7832,14 +8077,15 @@ Both empty.
 
 ### Bugs
 
-- **HIGH (B1)** — All snippet bodies are *not* valid stand-alone scripts and were never meant to be: `<input_path>` (line 13) and `<output_path>` (line 109) are angle-bracket sentinels, not Python. Today only `code_to_save` and `code_to_read` carry these sentinels. There is no substitution path anywhere in the codebase that swaps them out — `chatvis/llm.py::prompt_generation` substitutes `${input_path}` / `${output_path}` into the *prompt-generation template*, not into the example snippets. When `code_generation.py` interpolates these via f-string into the system prompt, the LLM sees the literal `<input_path>` token in the example. That's probably fine (the LLM will treat it as a placeholder) but it's worth documenting that these are LLM-facing sentinels rather than `string.Template` placeholders. A reader will mistake them for the latter.
+- **HIGH (B1)** — All snippet bodies are _not_ valid stand-alone scripts and were never meant to be: `<input_path>` (line 13) and `<output_path>` (line 109) are angle-bracket sentinels, not Python. Today only `code_to_save` and `code_to_read` carry these sentinels. There is no substitution path anywhere in the codebase that swaps them out — `chatvis/llm.py::prompt_generation` substitutes `${input_path}` / `${output_path}` into the _prompt-generation template_, not into the example snippets. When `code_generation.py` interpolates these via f-string into the system prompt, the LLM sees the literal `<input_path>` token in the example. That's probably fine (the LLM will treat it as a placeholder) but it's worth documenting that these are LLM-facing sentinels rather than `string.Template` placeholders. A reader will mistake them for the latter.
 - **HIGH (B2)** — Snippet bodies are stringified via `f"{CODE_EXAMPLES[...]}"` in `code_generation.py`. Pydantic `BaseModel.__str__` returns `code='\nfrom paraview...'` — **the literal string `code='...'` with the `code=` prefix** — not the snippet body. So every system prompt sent to the LLM contains things like:
-  ```
-  ```python
-  code="\nfrom paraview.simple import *\n..."
-  ```
-  ```
-  This is almost certainly not what is intended. The fix is either (a) accessing `.code` everywhere in `code_generation.py` or (b) overriding `CodeExample.__str__` to return `self.code`. (a) is more explicit; (b) is more ergonomic. **This is the single highest-impact correctness bug in the package.**
+    ````
+    ```python
+    code="\nfrom paraview.simple import *\n..."
+    ````
+    ```
+    This is almost certainly not what is intended. The fix is either (a) accessing `.code` everywhere in `code_generation.py` or (b) overriding `CodeExample.__str__` to return `self.code`. (a) is more explicit; (b) is more ergonomic. **This is the single highest-impact correctness bug in the package.**
+    ```
 - **MEDIUM (B3)** — `"code_to_stream_tacer"` typo in the comment on line 119 of `code_examples.py` ("tacer" → "tracer"). Cosmetic; the key was already fixed.
 - **LOW (B4)** — `code_to_color_transfer_function` (lines 47–53) references unbound `min`, `max` as Python identifiers but inside a string literal. Fine because the LLM is supposed to fill them. Worth a comment so future contributors don't try to "fix" them by importing builtins.
 
@@ -7857,22 +8103,23 @@ Both empty.
 
 - **HIGH (B5)** — Direct consequence of B2: `f"{CODE_EXAMPLES['code_to_read']}"` interpolates the model `__str__`, not `.code`. Every prompt in `CODE_GENERATION_PROMPTS` is currently malformed.
 - **MEDIUM (B6)** — `stream-glyph` system prompt block (lines 132–138) has stray indentation:
-  ```
-  ```python
-   {CODE_EXAMPLES["code_to_glyph"]}
-  ```
-  ```
-  Note the leading space before `{CODE_EXAMPLES`. Minor visual quirk in the rendered prompt, won't affect the LLM materially.
+    ````
+    ```python
+     {CODE_EXAMPLES["code_to_glyph"]}
+    ````
+    ```
+    Note the leading space before `{CODE_EXAMPLES`. Minor visual quirk in the rendered prompt, won't affect the LLM materially.
+    ```
 - **MEDIUM (B7)** — The shared `_TOP_LEVEL_OPERATIONS` block includes `code_to_clip` for **every scenario**, even `ml-iso` and `ml-dvr` which never clip. Adding irrelevant examples can mislead the model. The block design assumes one-size-fits-all, but only `points-surf-clip` actually needs the clip example. Probably intentional and pre-paper; flag-only.
 
 ### Refactor
 
 - **R4** — `CodeGenerationPrompt` has one field (`system_prompt: str`). Same observation as R2 — the Pydantic wrapper adds nothing. Either flatten to `dict[str, str]` or grow the model: `requires: list[Snippet]`, `description: str`, `model_temperature: float`, etc. If you keep it, drop `from pydantic import BaseModel` and convert to a `@dataclass(frozen=True)` (lighter, no Pydantic schema construction at import time).
 - **R5** — The string-concatenation-via-f-string pattern (`_PROLOGUE`, `_TOP_LEVEL_OPERATIONS`, `_RENDER_OPERATIONS`, `_EPILOG_OPERATIONS`) is hard to maintain. Promote this to a `string.Template`-based prompt assembler that takes a list of snippet keys and builds the prompt at construction time. Then per-scenario data becomes a tiny `list[Snippet]`:
-  ```python
-  ML_DVR_SNIPPETS = [Snippet.READ, Snippet.OPACITY_TF, Snippet.COLOR_TF, ...]
-  ```
-  This is the highest-value refactor in the documents tree — turns prompt assembly from string surgery into data.
+    ```python
+    ML_DVR_SNIPPETS = [Snippet.READ, Snippet.OPACITY_TF, Snippet.COLOR_TF, ...]
+    ```
+    This is the highest-value refactor in the documents tree — turns prompt assembly from string surgery into data.
 - **R6** — Whitespace inside the `_PROLOGUE`/etc. strings is indented (4 spaces) because they sit inside a function-style body. The result is that prompts shipped to the LLM contain leading whitespace on every line. Probably harmless; the LLM ignores it. Worth aligning with the unindented `_EPILOG_OPERATIONS` style.
 
 ---
@@ -7897,10 +8144,10 @@ Both empty.
 
 - **HIGH (B10)** — `PROMPT_GENERATION_EXAMPLES["points-surf-clip"].generated_prompt = ""` (line 103). `chatvis/main.py::generate_improved_prompt` now raises on this — good defensive code — but the data is still missing. The `points-surf-clip` scenario will refuse to run until somebody hand-writes an example. Either fix the data or have `generate_improved_prompt` log a warning and fall back to a skeleton.
 - **HIGH (B11)** — `ml-iso`, `ml-slice-iso`, and `ml-dvr` examples all describe **streamline tracing**, which is the wrong operation for those scenarios:
-  - `ml-iso` is supposed to render isosurfaces.
-  - `ml-slice-iso` is slice + contour.
-  - `ml-dvr` is volume rendering.
-  But the few-shot `input_prompt` and `generated_prompt` for those three keys are copy-pasted from `stream-glyph`. The LLM is being shown the wrong example for the task, which is exactly what few-shot examples are *meant* not to do. The scenario-specific instructions in `prompt_generation.py` lines 26–43 (the `${...}` user-task description) are correct; the few-shot examples are wrong. **This is the second-highest-impact correctness issue.**
+    - `ml-iso` is supposed to render isosurfaces.
+    - `ml-slice-iso` is slice + contour.
+    - `ml-dvr` is volume rendering.
+      But the few-shot `input_prompt` and `generated_prompt` for those three keys are copy-pasted from `stream-glyph`. The LLM is being shown the wrong example for the task, which is exactly what few-shot examples are _meant_ not to do. The scenario-specific instructions in `prompt_generation.py` lines 26–43 (the `${...}` user-task description) are correct; the few-shot examples are wrong. **This is the second-highest-impact correctness issue.**
 - **MEDIUM (B12)** — `ml-slice-iso.generated_prompt` (lines 84, 90) references `<input_file>` and `<output_file>` — different sentinel names than every other scenario, which uses `<input_path>` / `<output_path>`. Won't break anything (these are not substituted), but a downstream substitution pass would silently skip them.
 
 ### Refactor
@@ -7920,22 +8167,25 @@ Both empty.
 ### Refactor
 
 - **R11** — Same observation as R7: `prompt_generation_examples.py` exposes a dict, but `prompt_generation.py` re-wraps each one inside a `PromptGenerationPrompt`. The `PromptGenerationPrompt` class adds `system_prompt` (constant across all scenarios) and the template (5 nearly-identical strings). All five scenarios share the same `system_prompt`. Consider hoisting:
-  ```python
-  SHARED_SYSTEM_PROMPT = "You are a prompt generator..."
-  SHARED_USER_TEMPLATE = Template("""
-  Generate the most effective prompt for the user input:
-  ${task_description}
 
-  Here is an example user prompt:
-      ${input_prompt}
+    ```python
+    SHARED_SYSTEM_PROMPT = "You are a prompt generator..."
+    SHARED_USER_TEMPLATE = Template("""
+    Generate the most effective prompt for the user input:
+    ${task_description}
 
-  Here is an example generated prompt for the example user prompt:
-      ${generated_prompt}
+    Here is an example user prompt:
+        ${input_prompt}
 
-  List out the operations to perform step by step.
-  """)
-  ```
-  Then `PROMPT_GENERATION_PROMPTS` becomes a dict mapping scenario → `task_description`, and the substitution call adds `task_description=` from the dict.
+    Here is an example generated prompt for the example user prompt:
+        ${generated_prompt}
+
+    List out the operations to perform step by step.
+    """)
+    ```
+
+    Then `PROMPT_GENERATION_PROMPTS` becomes a dict mapping scenario → `task_description`, and the substitution call adds `task_description=` from the dict.
+
 - **R12** — Pair with R11: extract per-scenario `task_description` as a constant (5 strings, currently embedded inside the 5 templates). This shrinks `prompt_generation.py` by ~80%.
 
 ---
@@ -7944,7 +8194,7 @@ Both empty.
 
 ### Bugs
 
-- **LOW (B15)** — `extract_python_code` is fenced on the literal string `` ```python `` followed by anything until ` ``` `. Triple backticks inside the code (e.g., the LLM emitting a nested fence) would terminate early. Unlikely with ParaView Python code; flagging only.
+- **LOW (B15)** — `extract_python_code` is fenced on the literal string ` ```python ` followed by anything until ` ``` `. Triple backticks inside the code (e.g., the LLM emitting a nested fence) would terminate early. Unlikely with ParaView Python code; flagging only.
 - **LOW (B16)** — `pydantic_to_dataframe` (line 6) takes `models: list` (untyped element). Caller can pass anything; failure is at the `.model_dump()` call. Either type-annotate as `list[BaseModel]` or accept the runtime risk. Also: this helper isn't called anywhere in the package right now. If it's not exercised in the next change, consider deleting it.
 
 ### Refactor
@@ -7958,7 +8208,7 @@ Both empty.
 
 ### Bugs
 
-- **MEDIUM (B17)** — `int(time.time())` (line 58) uses **local** time epoch (it's actually UTC-correct because `time.time()` is epoch seconds regardless of timezone — but the filename uses **local-clock-derived** wall time only if a reader assumes UTC). The log records *inside* the file are UTC (`formatter.converter = time.gmtime`). Mixing local-time filename with UTC-time records is a foot-gun. Worth either: (a) embedding ISO-UTC datetime in the filename (`chatvis_20260611T180530Z.log`), or (b) explicitly documenting both clocks. Since the filename is `int(time.time())` which is the same in UTC and local (epoch seconds), the practical issue is when someone tries to *parse* the filename to a wall time — they'll do it in local TZ by default. Low-priority cosmetic concern.
+- **MEDIUM (B17)** — `int(time.time())` (line 58) uses **local** time epoch (it's actually UTC-correct because `time.time()` is epoch seconds regardless of timezone — but the filename uses **local-clock-derived** wall time only if a reader assumes UTC). The log records _inside_ the file are UTC (`formatter.converter = time.gmtime`). Mixing local-time filename with UTC-time records is a foot-gun. Worth either: (a) embedding ISO-UTC datetime in the filename (`chatvis_20260611T180530Z.log`), or (b) explicitly documenting both clocks. Since the filename is `int(time.time())` which is the same in UTC and local (epoch seconds), the practical issue is when someone tries to _parse_ the filename to a wall time — they'll do it in local TZ by default. Low-priority cosmetic concern.
 - **LOW (B18)** — `for handler in list(logger.handlers): logger.removeHandler(handler); handler.close()` (lines 40–42) closes handlers it doesn't own. If something else added a handler to the `"chatvis"` logger, it gets unceremoniously closed. Fine for the current single-entry-point design; flag only.
 - **LOW (B19)** — `propagate = False` (line 37) means messages **never** reach the root logger. If a downstream user wants to capture chatvis logs via standard `logging` integration (e.g., a pytest `caplog`), they have to know to attach to `"chatvis"`. Worth documenting in the module docstring (it does mention `getLogger(__name__)`, but not the propagation choice).
 
@@ -7976,23 +8226,23 @@ Both empty.
 - **HIGH (B20)** — `OpenAIModel.chat` logs `system_prompt` and `user_prompt` at DEBUG (lines 37–38) — good. But it **does not log the response** at DEBUG. Half the conversation is invisible. Add a debug log of the parsed response before returning. (The response is logged at INFO indirectly in `main.py` for `generate_improved_prompt`, but not for the future `code_generation`/`code_improvement` calls.)
 - **MEDIUM (B21)** — `OpenAIModel.__init__` takes `logger: Logger` as a constructor arg. The `logger` is then stored on the instance. But every helper function (`prompt_generation`, `code_generation`, `code_improvement`) takes the `OpenAIModel` and ignores `model.logger`. The `Logger` is plumbed in but only the class itself uses it. Either remove from the public init (have `OpenAIModel.__init__` call `logging.getLogger("chatvis.llm")` internally) or have callers reuse the model's logger. The current arrangement makes the constructor signature carry a parameter that callers shouldn't have to think about.
 - **MEDIUM (B22)** — `model.chat(...)` exceptions bubble. `connect_to_argo` wraps the handshake call in `try/except Exception`, but `prompt_generation`, `code_generation`, `code_improvement` do not. A transient network failure during prompt generation will exit the CLI with an opaque `openai.APIConnectionError` traceback. Either:
-  - (a) Wrap at each callsite with structured error logging (lots of boilerplate).
-  - (b) Add a thin `OpenAIModel.chat` retry / re-raise-with-context wrapper (centralized).
-  Option (b) is cheaper.
+    - (a) Wrap at each callsite with structured error logging (lots of boilerplate).
+    - (b) Add a thin `OpenAIModel.chat` retry / re-raise-with-context wrapper (centralized).
+      Option (b) is cheaper.
 - **LOW (B23)** — `parse_response` returns `""` for `content is None` silently. A `None` content from an LLM is unusual but possible (e.g., function-call response, content filter). Silent coercion makes the downstream "is the prompt empty?" check harder to reason about. Consider raising or logging a warning.
 - **LOW (B24)** — `seed: int = 42` is hardcoded. Pass through from CLI for reproducibility experiments.
 
 ### Refactor
 
 - **R17** — The four free functions (`prompt_generation`, `code_generation`, `code_improvement`, `parse_response`) are doing the work of methods. Convert them to methods on `OpenAIModel`:
-  ```python
-  class OpenAIModel:
-      def generate_prompt(self, pgp: PromptGenerationPrompt, ...): ...
-      def generate_code(self, generated_prompt: str, cgp: CodeGenerationPrompt): ...
-      def improve_code(self, ...): ...
-      def parse(self, response: ChatCompletion) -> str: ...
-  ```
-  Reduces the number of `openai=model` kwargs that callers have to thread, and gives one obvious place for B22's retry wrapper.
+    ```python
+    class OpenAIModel:
+        def generate_prompt(self, pgp: PromptGenerationPrompt, ...): ...
+        def generate_code(self, generated_prompt: str, cgp: CodeGenerationPrompt): ...
+        def improve_code(self, ...): ...
+        def parse(self, response: ChatCompletion) -> str: ...
+    ```
+    Reduces the number of `openai=model` kwargs that callers have to thread, and gives one obvious place for B22's retry wrapper.
 - **R18** — `model_name.lower()` happens in `__init__` but the input is already constrained by `MODELS = ["gpt4o"]`. Either trust the CLI's `choices=` and drop `.lower()`, or do real validation (e.g., `if model_name not in MODELS: raise ValueError`).
 - **R19** — Argo-specific quirks (the "API key is actually a username" comment, the default endpoint) belong in a thin `ArgoOpenAIModel(OpenAIModel)` subclass, not in `OpenAIModel`. Today the class is named generically but coded to Argo's contract.
 - **R20** — `code_improvement`'s `shell_errors` parameter takes a `str` after the caller joins `errors` with `"\n"`. Make it `list[str]` and join inside; symmetric with how `extract_error_messages` returns a list.
@@ -8003,14 +8253,14 @@ Both empty.
 
 ### Bugs
 
-- **HIGH (B25)** — `check_data` (lines 105–118) uses substring matching that is *correct today* but brittle. `scenario[0:2] == "ml"` would match a future `ml-foo`. The user previously asked to keep this — flag only, not a fix.
+- **HIGH (B25)** — `check_data` (lines 105–118) uses substring matching that is _correct today_ but brittle. `scenario[0:2] == "ml"` would match a future `ml-foo`. The user previously asked to keep this — flag only, not a fix.
 - **MEDIUM (B26)** — `generate_improved_prompt` raises `ValueError` for empty examples (lines 163–167). The CLI does not catch this. A user running `--scenario points-surf-clip` today will get an unstructured traceback. Catch it in `main()` with an INFO/ERROR log and `sys.exit(2)`. Otherwise the agentic-feeling CLI behaves like a stack-tracing dev tool.
 - **MEDIUM (B27)** — `connect_to_argo` raises `RuntimeError` on handshake failure (lines 144, 149). `main()` does not catch. Same pattern as B26.
 - **MEDIUM (B28)** — `main.py:191` logs `cli_args.__dict__`. The `Namespace` object includes the **`username`** which is plaintext-credential-adjacent (Argo treats it as the API key). At DEBUG level, this gets written to disk. Consider:
-  ```python
-  redacted = {k: ("***" if k == "username" else v) for k, v in vars(cli_args).items()}
-  logger.debug("Command line args: %s", redacted)
-  ```
+    ```python
+    redacted = {k: ("***" if k == "username" else v) for k, v in vars(cli_args).items()}
+    logger.debug("Command line args: %s", redacted)
+    ```
 - **LOW (B29)** — `main.py:191` typo `"Logg command line args"`. Also `cli_args.__dict__` → `vars(cli_args)` is more idiomatic (called out previously, deferred).
 - **LOW (B30)** — `setup_logger` uses the string literal `"chatvis"` (line 95) instead of `chatvis.logger.LOGGER_NAME`. Drift risk.
 - **LOW (B31)** — `match cli_args.scenario:` block was removed — current dispatch is a single `PROMPT_GENERATION_PROMPTS[cli_args.scenario]` call. **Good change**, no bug. The dispatch through `match` will need to come back when later stages (code generation, repair loop) start needing per-scenario divergence — but that should be a `dict[str, Callable]` not a `match`. Future-state observation.
@@ -8018,15 +8268,15 @@ Both empty.
 ### Refactor
 
 - **R21** — `main()` is becoming a procedural pipeline (parse → log → check → connect → generate). Each block is well-marked by comments but the procedural style will scale poorly as more stages join. Suggest extracting a thin `Pipeline` object:
-  ```python
-  pipeline = Pipeline(cli_args, logger)
-  pipeline.verify_data()
-  pipeline.connect()
-  pipeline.generate_improved_prompt()
-  pipeline.generate_code()      # future
-  pipeline.run_and_repair()     # future
-  ```
-  Each step takes the previous step's output via instance state, returns nothing. Easier to test in isolation; easier to inject mocks. (Don't do this yet — wait until two more stages land — but plan for it.)
+    ```python
+    pipeline = Pipeline(cli_args, logger)
+    pipeline.verify_data()
+    pipeline.connect()
+    pipeline.generate_improved_prompt()
+    pipeline.generate_code()      # future
+    pipeline.run_and_repair()     # future
+    ```
+    Each step takes the previous step's output via instance state, returns nothing. Easier to test in isolation; easier to inject mocks. (Don't do this yet — wait until two more stages land — but plan for it.)
 - **R22** — `cli_parser()` is 50 lines of `add_argument` calls. As soon as you add 2 more flags it becomes unreadable. Move to a Pydantic-settings-style `class CliConfig(BaseModel)` with a `.from_argparse(...)` classmethod, or split into `_add_scenario_args`, `_add_io_args`, `_add_logging_args`, `_add_argo_args`. Tiny win individually, big win cumulatively.
 - **R23** — `MODELS = ["gpt4o"]`, `SCENARIOS = [...]`, `LOG_LEVELS = [...]` are CLI vocabulary. They live in `main.py` today; they belong next to the data they describe. `SCENARIOS` is a function of `set(CODE_GENERATION_PROMPTS) & set(PROMPT_GENERATION_PROMPTS)`. `MODELS` belongs in `llm.py`. `LOG_LEVELS` belongs in `logger.py`. (User previously asked for SCENARIOS to stay hand-maintained — preserve that choice — but the other two can move.)
 - **R24** — `LOG_LEVELS` mixes lowercase strings (CLI ergonomics) with the `getLevelNamesMapping()` lookup that requires uppercase. Either choose uppercase everywhere or hide the conversion inside `configure_logging` (let `configure_logging` accept `str | int`).
@@ -8039,12 +8289,12 @@ Both empty.
 ### Architectural
 
 - **A1** — The four pipeline stages (prompt generation, code generation, script execution, code improvement) currently live across three modules with inconsistent shapes:
-  - prompt generation: 1 dict in documents + 1 function in llm + 1 function in main
-  - code generation: 1 dict in documents + 1 function in llm + 0 in main
-  - code improvement: 1 instance in documents + 1 function in llm + 0 in main
-  - script execution: 0 (lives in the deleted `agent.py`)
+    - prompt generation: 1 dict in documents + 1 function in llm + 1 function in main
+    - code generation: 1 dict in documents + 1 function in llm + 0 in main
+    - code improvement: 1 instance in documents + 1 function in llm + 0 in main
+    - script execution: 0 (lives in the deleted `agent.py`)
 
-  Unify. One `Pipeline` class with one method per stage, or one module per stage (`chatvis/stages/prompt.py`, `chatvis/stages/code.py`, etc.).
+    Unify. One `Pipeline` class with one method per stage, or one module per stage (`chatvis/stages/prompt.py`, `chatvis/stages/code.py`, etc.).
 
 - **A2** — The data layer (`documents/`) and the orchestration layer (`llm.py`, `main.py`) communicate through string keys (`"ml-dvr"`, `"code_to_read"`). Stringly-typed dictionaries are everywhere. A `Scenario` enum and a `Snippet` enum would catch typos at import time and unlock IDE autocomplete. ROI is high — this codebase is mostly dispatch.
 
@@ -8071,14 +8321,14 @@ If you only do one thing, do **B2/B5/B8/B11**. They are silently corrupting ever
 
 Suggested phasing:
 
-| Set | Findings | Effort | Yield |
-|-----|----------|--------|-------|
-| **Set A — Correctness** | B2, B5, B8, B10, B11 | ~30 min | Stops silent prompt corruption |
-| **Set B — Robustness** | B20, B22, B26, B27, B28 | ~45 min | Cleaner CLI failure modes, no leaked credentials in logs |
-| **Set C — Polish** | B17, B19, B23, B24, B29, B30 | ~20 min | Reads better, drift-resistant |
-| **Set D — Refactor** | R1, R7, R11/R12, R17, P1 | ~3 hours | Documents become data; LLM module becomes class-based; enums kill stringly-typed dispatch |
-| **Set E — Docs** | D1–D4 | ~1 hour | Future-self / next-contributor onboarding |
-| **Set F — Tests** | A3 | ~1 hour | Catches B2/B5/B8/B11-style bugs going forward |
+| Set                     | Findings                     | Effort   | Yield                                                                                     |
+| ----------------------- | ---------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| **Set A — Correctness** | B2, B5, B8, B10, B11         | ~30 min  | Stops silent prompt corruption                                                            |
+| **Set B — Robustness**  | B20, B22, B26, B27, B28      | ~45 min  | Cleaner CLI failure modes, no leaked credentials in logs                                  |
+| **Set C — Polish**      | B17, B19, B23, B24, B29, B30 | ~20 min  | Reads better, drift-resistant                                                             |
+| **Set D — Refactor**    | R1, R7, R11/R12, R17, P1     | ~3 hours | Documents become data; LLM module becomes class-based; enums kill stringly-typed dispatch |
+| **Set E — Docs**        | D1–D4                        | ~1 hour  | Future-self / next-contributor onboarding                                                 |
+| **Set F — Tests**       | A3                           | ~1 hour  | Catches B2/B5/B8/B11-style bugs going forward                                             |
 
 ---
 
@@ -8102,26 +8352,33 @@ Tell me which sets to act on and which open questions to answer, and I'll exit p
 ## Assistant (Compaction · Claude Opus 4.7 · 28.4s)
 
 ## Goal
+
 - Conduct a bug/smell/refactor review across `chatvis/` and `chatvis/documents/` (read-only, plan mode).
 
 ## Constraints & Preferences
+
 - Plan mode active — read-only, no edits.
 - User prefers terse, file-by-file findings split into bugs, smells, and refactoring proposals.
 - Prior preferences: don't touch smells unless asked; leave style fixes for pre-commit; `MODELS = ["gpt4o"]` (unhyphenated, Argo proxy expects it); `--log-level` lowercase choices with `info` default; SCENARIOS hand-maintained for now; agent.py is deleted (do not reintroduce).
 - Documents data bugs were previously deferred; user only fixed empty `points-surf-clip.generated_prompt` via runtime guard in `generate_improved_prompt`.
 
 ## Progress
+
 ### Done
+
 - Read all 11 in-scope files: `chatvis/{__init__.py, main.py, llm.py, logger.py, utils.py}` and `chatvis/documents/{__init__.py, code_examples.py, code_generation.py, code_improvement.py, prompt_generation_examples.py, prompt_generation.py}`.
 - Previously implemented: CLI parser, logger, `OpenAIModel`/`prompt_generation`/`code_generation`/`code_improvement`/`parse_response` helpers, `generate_improved_prompt` wired into `main()` via `PROMPT_GENERATION_PROMPTS[scenario]` dispatch, fail-fast guard on empty few-shot example, build-system config in `pyproject.toml`.
 
 ### In Progress
+
 - Compiling the cross-file review writeup for user.
 
 ### Blocked
+
 - (none)
 
 ## Key Decisions
+
 - Interpretation (a) used for last task: prompt generation only, no code generation or agent loop wiring.
 - `OpenAIModel` stores `Logger`, logs prompts at DEBUG inside `chat()`.
 - `connect_to_argo` handshake: any exception or empty response → `RuntimeError` (logged); no string-equality on LLM output.
@@ -8130,27 +8387,30 @@ Tell me which sets to act on and which open questions to answer, and I'll exit p
 - `chatvis/agent.py` deleted; `tests/` directory removed.
 
 ## Next Steps
+
 - Deliver review covering: per-file bugs, smells, refactoring proposals (docstrings, patterns, maintainability).
 - Likely follow-up after review: user will pick which findings to action; next feature work probably "implement code generation for all scenarios" (continuing the staged pipeline).
 
 ## Critical Context
+
 - **Carried-over bugs (still live, previously flagged, not fixed):**
-  - `chatvis/documents/code_generation.py`: f-strings interpolate Pydantic `CodeExample` models (e.g. `{CODE_EXAMPLES["code_to_read"]}`) → produces `code='\nfrom paraview...'` literals in system prompts instead of raw code. Affects all five `CODE_GENERATION_PROMPTS` entries.
-  - `chatvis/documents/code_improvement.py:29`: `{prompt}` uses single-brace (Python f-string syntax) instead of `${prompt}` (Template syntax) — will not substitute via `Template.substitute(prompt=...)`. `llm.code_improvement` passes `prompt=generated_prompt`, so the literal `{prompt}` will appear in the user message.
-  - `PROMPT_GENERATION_EXAMPLES` cross-scenario contamination: `ml-iso`, `ml-slice-iso`, `ml-dvr`, `stream-glyph` all reuse the streamline-tracing `input_prompt`/`generated_prompt` regardless of intent.
-  - `PROMPT_GENERATION_EXAMPLES["points-surf-clip"].generated_prompt` is empty (now guarded at runtime by `ValueError` in `generate_improved_prompt`).
+    - `chatvis/documents/code_generation.py`: f-strings interpolate Pydantic `CodeExample` models (e.g. `{CODE_EXAMPLES["code_to_read"]}`) → produces `code='\nfrom paraview...'` literals in system prompts instead of raw code. Affects all five `CODE_GENERATION_PROMPTS` entries.
+    - `chatvis/documents/code_improvement.py:29`: `{prompt}` uses single-brace (Python f-string syntax) instead of `${prompt}` (Template syntax) — will not substitute via `Template.substitute(prompt=...)`. `llm.code_improvement` passes `prompt=generated_prompt`, so the literal `{prompt}` will appear in the user message.
+    - `PROMPT_GENERATION_EXAMPLES` cross-scenario contamination: `ml-iso`, `ml-slice-iso`, `ml-dvr`, `stream-glyph` all reuse the streamline-tracing `input_prompt`/`generated_prompt` regardless of intent.
+    - `PROMPT_GENERATION_EXAMPLES["points-surf-clip"].generated_prompt` is empty (now guarded at runtime by `ValueError` in `generate_improved_prompt`).
 - **Smells previously flagged (user said leave for pre-commit):** `main.py` import grouping; overlong line in `generate_improved_prompt` call; `vars()` vs `__dict__`; `is False` vs `not`.
 - **New observations from this pass:**
-  - `chatvis/__init__.py` and `chatvis/documents/__init__.py` both empty — no package exports.
-  - `chatvis/utils.py::pydantic_to_dataframe` and `extract_*` helpers are unused since `agent.py` deletion (dead code).
-  - `chatvis/utils.py::extract_error_messages` declared return type `list[str]` but missing return annotation in truncated output (need to verify); inner `i` is unused (only `enumerate` loop var).
-  - `OpenAIModel.model_name.lower()` is incidental — `MODELS = ["gpt4o"]` already lowercase.
-  - `seed=42` may or may not be honored by Argo proxy (unverified).
-  - `logger.py::configure_logging` is idempotent (clears handlers) — good; uses `time.gmtime` for UTC — good.
-  - No tests in repo.
+    - `chatvis/__init__.py` and `chatvis/documents/__init__.py` both empty — no package exports.
+    - `chatvis/utils.py::pydantic_to_dataframe` and `extract_*` helpers are unused since `agent.py` deletion (dead code).
+    - `chatvis/utils.py::extract_error_messages` declared return type `list[str]` but missing return annotation in truncated output (need to verify); inner `i` is unused (only `enumerate` loop var).
+    - `OpenAIModel.model_name.lower()` is incidental — `MODELS = ["gpt4o"]` already lowercase.
+    - `seed=42` may or may not be honored by Argo proxy (unverified).
+    - `logger.py::configure_logging` is idempotent (clears handlers) — good; uses `time.gmtime` for UTC — good.
+    - No tests in repo.
 - Build verified end-to-end last session via `make build` (succeeded with setuptools 80+ and explicit `[tool.setuptools.packages.find]`).
 
 ## Relevant Files
+
 - `chatvis/main.py`: CLI entry, scenario dispatch via `PROMPT_GENERATION_PROMPTS`, handshake + logging setup.
 - `chatvis/llm.py`: `OpenAIModel` + `prompt_generation`/`code_generation`/`code_improvement`/`parse_response` helpers; DEBUG logging of prompts.
 - `chatvis/logger.py`: `configure_logging(log_to_file, level)` → `Path | None`; `LOGGER_NAME = "chatvis"`; UTC timestamps; idempotent handler reset.
