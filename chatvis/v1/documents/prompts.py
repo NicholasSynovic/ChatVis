@@ -48,7 +48,8 @@ Please generate a ParaView Python script for the following operations.
 Read in the file named '<input_path>'.
 Generate an 3d Delaunay triangulation of the dataset.
 Clip the data with a y-z plane at x=0, keeping the -x half of the data and removing the +x half.
-Render the image as a wireframe. Save a screenshot of the result in the filename '<output_path>'.
+Render the image as a wireframe.
+Save a screenshot of the result in the filename '<output_path>'.
 The rendered view and saved screenshot should be 1920 x 1080 pixels.
 """
 

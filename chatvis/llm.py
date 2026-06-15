@@ -11,6 +11,18 @@ the three pipeline-stage helpers:
 * :func:`improve_code` is the repair stage: given a broken script and
   the captured ``pvpython`` errors, ask the LLM to fix the failing line
   without rewriting the rest of the script.
+
+Prompt source-of-truth split:
+
+* The *user's own* scenario input comes from :class:`UserPrompts`,
+  which carries ``{input_path}`` / ``{output_path}`` placeholders
+  consumed by Python's :py:meth:`str.format`.
+* The *few-shot example pair* (input shown to the LLM plus the desired
+  improved output) comes from :class:`GeneratedPrompt`, which carries
+  ``<input_path>`` / ``<output_path>`` angle-bracket sentinels consumed
+  by :func:`_substitute_paths`. The two conventions deliberately coexist
+  so the cleaner ``.format`` path can be used for new authored prompts
+  without rewriting the legacy few-shot data.
 """
 
 import logging
@@ -24,6 +36,7 @@ from chatvis.v1.documents.prompts import GeneratedPrompt
 from chatvis.v1.prompts.code_generation import CodeGeneration
 from chatvis.v1.prompts.code_improvement import CodeImprovement
 from chatvis.v1.prompts.prompt_improvement import PromptImprovement
+from chatvis.v1.prompts.user_prompts import UserPrompts
 
 # Few-shot pair to show for each scenario during prompt improvement.
 # Rule: pick a pair from a *different* scenario family than the one
@@ -32,11 +45,11 @@ from chatvis.v1.prompts.prompt_improvement import PromptImprovement
 # covering ML_DVR / ML_ISO / ML_SLICE_ISO / STREAM_GLYPH, and the
 # points-surf-clip family), so this collapses to a binary toggle.
 _FEW_SHOT_KEY_BY_SCENARIO: dict[str, str] = {
-    "ml-dvr": "STREAM_GLYPH",
-    "ml-iso": "STREAM_GLYPH",
-    "ml-slice-iso": "STREAM_GLYPH",
-    "stream-glyph": "STREAM_GLYPH",
-    "points-surf-clip": "POINTS_SURF_CLIP",
+    "ml-dvr": "POINTS_SURF_CLIP",
+    "ml-iso": "POINTS_SURF_CLIP",
+    "ml-slice-iso": "POINTS_SURF_CLIP",
+    "stream-glyph": "POINTS_SURF_CLIP",
+    "points-surf-clip": "STREAM_GLYPH",
 }
 
 # Defaults chosen for reproducibility. ``seed`` is best-effort per the
@@ -162,21 +175,22 @@ def improve_prompt(
 ) -> str:
     """Run the prompt-improvement stage for ``scenario``.
 
-    Loads the stock ``<scenario>_INPUT`` description from
-    :class:`GeneratedPrompt`, plus a few-shot ``_INPUT`` / ``_OUTPUT``
-    pair chosen from a *different* scenario family via
-    :data:`_FEW_SHOT_KEY_BY_SCENARIO` (so the LLM is never shown the
-    answer for the scenario it is being asked to improve). All three
-    strings have their ``<input_path>`` / ``<output_path>`` sentinels
-    substituted with the concrete paths before being formatted into
-    :data:`PromptImprovement.USER_PROMPT`.
+    Loads the user's scenario description from :class:`UserPrompts`
+    (``{input_path}`` / ``{output_path}`` substituted via
+    :py:meth:`str.format`) plus a few-shot ``_INPUT`` / ``_OUTPUT`` pair
+    from :class:`GeneratedPrompt` (``<input_path>`` / ``<output_path>``
+    sentinels substituted via :func:`_substitute_paths`). The few-shot
+    pair is chosen from a *different* scenario family via
+    :data:`_FEW_SHOT_KEY_BY_SCENARIO` so the LLM is never shown the
+    answer for the scenario it is being asked to improve. All three
+    strings are then formatted into :data:`PromptImprovement.USER_PROMPT`.
 
     Args:
         model: configured chat-completions client.
         scenario: one of the CLI ``--scenario`` choices, e.g.
             ``"ml-dvr"``. Hyphens are normalised to underscores and the
-            string is upper-cased to match the ``GeneratedPrompt`` member
-            naming convention.
+            string is upper-cased to match the ``UserPrompts`` and
+            ``GeneratedPrompt`` member naming convention.
         input_path: absolute path to the dataset the generated script
             will read.
         output_path: absolute path where the generated script will write
@@ -188,6 +202,10 @@ def improve_prompt(
     Raises:
         ValueError: if ``scenario`` has no entry in
             :data:`_FEW_SHOT_KEY_BY_SCENARIO`.
+        KeyError: if :class:`UserPrompts` has no member matching
+            ``scenario`` (e.g. a new scenario was added to the CLI
+            choices but the corresponding ``UserPrompts`` entry was
+            forgotten).
     """
     scenario_key: str = scenario.replace("-", "_").upper()
     try:
@@ -197,8 +215,7 @@ def improve_prompt(
             f"No few-shot example configured for scenario {scenario!r}"
         ) from exc
 
-    user_input: str = _substitute_paths(
-        GeneratedPrompt[f"{scenario_key}_INPUT"],
+    user_input: str = UserPrompts[scenario_key].format(
         input_path=input_path,
         output_path=output_path,
     )

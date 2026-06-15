@@ -9,7 +9,7 @@ LOG_LEVELS: list[str] = ["debug", "info", "warning", "error", "critical"]
 DEFAULT_LOG_LEVEL: str = "info"
 DEFAULT_ENDPOINT: str = "https://apps.inside.anl.gov/argoapi/v1"
 DEFAULT_MAX_REPAIR_ATTEMPTS: int = 5
-SCENARIOS: list[str] = [  # Todo: Conver these into an Enum
+SCENARIOS: list[str] = [
     "ml-dvr",
     "ml-iso",
     "ml-slice-iso",
