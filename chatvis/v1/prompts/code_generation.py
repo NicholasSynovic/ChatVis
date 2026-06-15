@@ -10,7 +10,8 @@ class CodeGeneration(StrEnum):
     """
 
     SYSTEM_PROMPT = f"""
-You are a ParaView code assistant. Read the user prompt line by line and generate a complete Python script step by step.
+You are a ParaView code assistant.
+Read the user prompt line by line and generate a complete Python script step by step.
 
 ## Filters and operations
 
