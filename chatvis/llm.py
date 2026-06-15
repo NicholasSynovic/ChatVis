@@ -2,8 +2,15 @@
 
 Provides an OpenAI-compatible chat-completions wrapper configured for
 deterministic, reproducible runs against Argonne's Argo endpoint, plus
-the pipeline helper :func:`improve_prompt` that turns a stock scenario
-description into an LLM-improved prompt suitable for code generation.
+the three pipeline-stage helpers:
+
+* :func:`improve_prompt` turns a stock scenario description into an
+  LLM-improved prompt suitable for code generation.
+* :func:`generate_code` asks the LLM for a ParaView script implementing
+  the improved prompt.
+* :func:`improve_code` is the repair stage: given a broken script and
+  the captured ``pvpython`` errors, ask the LLM to fix the failing line
+  without rewriting the rest of the script.
 """
 
 import logging
@@ -15,6 +22,7 @@ from openai.types.chat import ChatCompletion
 
 from chatvis.v1.documents.prompts import GeneratedPrompt
 from chatvis.v1.prompts.code_generation import CodeGeneration
+from chatvis.v1.prompts.code_improvement import CodeImprovement
 from chatvis.v1.prompts.prompt_improvement import PromptImprovement
 
 # Few-shot pair to show for each scenario during prompt improvement.
@@ -241,6 +249,56 @@ def generate_code(model: OpenAIModel, improved_prompt: str) -> str:
     user_prompt: str = CodeGeneration.USER_PROMPT.format(prompt=improved_prompt)
     response: ChatCompletion = model.chat(
         system_prompt=CodeGeneration.SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+    )
+    return parse_response(response=response)
+
+
+def improve_code(
+    model: OpenAIModel,
+    improved_prompt: str,
+    broken_script: str,
+    errors: str,
+) -> str:
+    """Run the code-improvement (repair) stage.
+
+    Issued by the orchestrator's repair loop after a ``pvpython`` run
+    surfaces at least one traceback. Sends the focused-fix
+    :data:`CodeImprovement.SYSTEM_PROMPT` together with the captured
+    error text, the script that produced it, and the original improved
+    prompt so the LLM has the full context needed to fix only the
+    failing line.
+
+    Args:
+        model: configured chat-completions client.
+        improved_prompt: the natural-language scenario description, as
+            returned by :func:`improve_prompt` and previously passed to
+            :func:`generate_code`. Re-supplied verbatim so the repair
+            stage knows what the script was *meant* to achieve.
+        broken_script: the on-disk Python script that ``pvpython``
+            failed on, i.e. the output of
+            :func:`chatvis.v1.script.first_python_block` after
+            :func:`generate_code`. Pass the extracted script rather than
+            the raw LLM response so the LLM sees exactly what was
+            executed.
+        errors: the failure text to show the LLM. Typically
+            ``"\\n".join(extract_error_messages(stderr))`` so that VTK's
+            ANSI-coloured noise is stripped, but any string is accepted;
+            callers may pass raw stderr if they want the LLM to see the
+            full context.
+
+    Returns:
+        The raw LLM response content (Markdown text including one or
+        more fenced Python blocks). Extraction is the caller's job, as
+        with :func:`generate_code`.
+    """
+    user_prompt: str = CodeImprovement.USER_PROMPT.format(
+        errors=errors,
+        script=broken_script,
+        prompt=improved_prompt,
+    )
+    response: ChatCompletion = model.chat(
+        system_prompt=CodeImprovement.SYSTEM_PROMPT,
         user_prompt=user_prompt,
     )
     return parse_response(response=response)
