@@ -14,7 +14,22 @@ from openai import Client
 from openai.types.chat import ChatCompletion
 
 from chatvis.v1.documents.prompts import GeneratedPrompt
+from chatvis.v1.prompts.code_generation import CodeGeneration
 from chatvis.v1.prompts.prompt_improvement import PromptImprovement
+
+# Few-shot pair to show for each scenario during prompt improvement.
+# Rule: pick a pair from a *different* scenario family than the one
+# being asked about, so the LLM is not handed back its own answer.
+# Today only two distinct families exist (the stream-glyph family
+# covering ML_DVR / ML_ISO / ML_SLICE_ISO / STREAM_GLYPH, and the
+# points-surf-clip family), so this collapses to a binary toggle.
+_FEW_SHOT_KEY_BY_SCENARIO: dict[str, str] = {
+    "ml-dvr": "POINTS_SURF_CLIP",
+    "ml-iso": "POINTS_SURF_CLIP",
+    "ml-slice-iso": "POINTS_SURF_CLIP",
+    "stream-glyph": "POINTS_SURF_CLIP",
+    "points-surf-clip": "STREAM_GLYPH",
+}
 
 # Defaults chosen for reproducibility. ``seed`` is best-effort per the
 # OpenAI spec; the returned ``system_fingerprint`` lets a caller detect
@@ -139,12 +154,14 @@ def improve_prompt(
 ) -> str:
     """Run the prompt-improvement stage for ``scenario``.
 
-    Loads the stock ``<scenario>_INPUT`` description and its companion
-    ``<scenario>_OUTPUT`` few-shot example from
-    :class:`GeneratedPrompt`, substitutes concrete dataset and
-    screenshot paths into both, formats them into
-    :data:`PromptImprovement.USER_PROMPT`, and returns the LLM's
-    response content verbatim.
+    Loads the stock ``<scenario>_INPUT`` description from
+    :class:`GeneratedPrompt`, plus a few-shot ``_INPUT`` / ``_OUTPUT``
+    pair chosen from a *different* scenario family via
+    :data:`_FEW_SHOT_KEY_BY_SCENARIO` (so the LLM is never shown the
+    answer for the scenario it is being asked to improve). All three
+    strings have their ``<input_path>`` / ``<output_path>`` sentinels
+    substituted with the concrete paths before being formatted into
+    :data:`PromptImprovement.USER_PROMPT`.
 
     Args:
         model: configured chat-completions client.
@@ -159,20 +176,31 @@ def improve_prompt(
 
     Returns:
         The improved prompt as plain text.
+
+    Raises:
+        ValueError: if ``scenario`` has no entry in
+            :data:`_FEW_SHOT_KEY_BY_SCENARIO`.
     """
     scenario_key: str = scenario.replace("-", "_").upper()
+    try:
+        few_shot_key: str = _FEW_SHOT_KEY_BY_SCENARIO[scenario]
+    except KeyError as exc:
+        raise ValueError(
+            f"No few-shot example configured for scenario {scenario!r}"
+        ) from exc
+
     user_input: str = _substitute_paths(
         GeneratedPrompt[f"{scenario_key}_INPUT"],
         input_path=input_path,
         output_path=output_path,
     )
     example_user_input: str = _substitute_paths(
-        GeneratedPrompt.STREAM_GLYPH_INPUT,
+        GeneratedPrompt[f"{few_shot_key}_INPUT"],
         input_path=input_path,
         output_path=output_path,
     )
     example_user_output: str = _substitute_paths(
-        GeneratedPrompt.STREAM_GLYPH_OUTPUT,
+        GeneratedPrompt[f"{few_shot_key}_OUTPUT"],
         input_path=input_path,
         output_path=output_path,
     )
@@ -184,6 +212,35 @@ def improve_prompt(
     )
     response: ChatCompletion = model.chat(
         system_prompt=PromptImprovement.SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+    )
+    return parse_response(response=response)
+
+
+def generate_code(model: OpenAIModel, improved_prompt: str) -> str:
+    """Run the code-generation stage.
+
+    Sends :data:`CodeGeneration.SYSTEM_PROMPT` (which embeds every
+    ParaView code snippet from :class:`CodeSnippet` inside Markdown
+    fenced blocks at class-definition time) together with the
+    LLM-improved scenario prompt produced by :func:`improve_prompt`.
+
+    The LLM's reply is returned verbatim. It is expected to contain at
+    least one ``` ```python ... ``` ``` block; extraction and on-disk
+    persistence are handled by downstream helpers, not here.
+
+    Args:
+        model: configured chat-completions client.
+        improved_prompt: the natural-language scenario description, as
+            returned by :func:`improve_prompt`.
+
+    Returns:
+        The raw LLM response content (Markdown text including one or
+        more fenced Python blocks).
+    """
+    user_prompt: str = CodeGeneration.USER_PROMPT.format(prompt=improved_prompt)
+    response: ChatCompletion = model.chat(
+        system_prompt=CodeGeneration.SYSTEM_PROMPT,
         user_prompt=user_prompt,
     )
     return parse_response(response=response)
