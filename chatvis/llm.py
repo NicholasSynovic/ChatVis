@@ -276,15 +276,16 @@ def improve_code(
     improved_prompt: str,
     broken_script: str,
     errors: str,
+    stdout: str = "",
 ) -> str:
     """Run the code-improvement (repair) stage.
 
     Issued by the orchestrator's repair loop after a ``pvpython`` run
     surfaces at least one traceback. Sends the focused-fix
     :data:`CodeImprovement.SYSTEM_PROMPT` together with the captured
-    error text, the script that produced it, and the original improved
-    prompt so the LLM has the full context needed to fix only the
-    failing line.
+    error text, the script that produced it, the previous run's
+    standard output, and the original improved prompt so the LLM has
+    the full context needed to fix only the failing line.
 
     Args:
         model: configured chat-completions client.
@@ -303,6 +304,13 @@ def improve_code(
             ANSI-coloured noise is stripped, but any string is accepted;
             callers may pass raw stderr if they want the LLM to see the
             full context.
+        stdout: the captured standard-output text from the previous
+            ``pvpython`` run. Defaults to the empty string. Threaded
+            into the user prompt so the LLM can read any diagnostic
+            information that the previous script printed (for example,
+            the list of available PointData array names produced by a
+            previous repair iteration), rather than asking a human to
+            inspect it and edit the script.
 
     Returns:
         The raw LLM response content (Markdown text including one or
@@ -312,6 +320,7 @@ def improve_code(
     user_prompt: str = CodeImprovement.USER_PROMPT.format(
         errors=errors,
         script=broken_script,
+        stdout=stdout,
         prompt=improved_prompt,
     )
     response: ChatCompletion = model.chat(
