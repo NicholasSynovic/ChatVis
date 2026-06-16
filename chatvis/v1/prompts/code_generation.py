@@ -94,11 +94,15 @@ snippet before them.
 ```
 
 ```set render view direction (+X)
-{CodeSnippet.RENDER_VIEW_DIRECTION}
+{CodeSnippet.POSITIVE_X_RENDER_VIEW_DIRECTION}
 ```
 
-```set isometric view
-{CodeSnippet.ISOMETRIC_VIEW}
+```set render view direction (isometric)
+{CodeSnippet.ISOMETRIC_RENDER_VIEW_DIRECTION}
+```
+
+```set render view direction (default)
+{CodeSnippet.DEFAULT_RENDER_VIEW_DIRECTION}
 ```
 
 ```place camera explicitly
@@ -106,6 +110,23 @@ snippet before them.
 ```
 
 Adapt the render view configuration to match the user's instructions.
+
+Camera-framing rule (applies to every script that calls `Show(...)`):
+
+- After all `Show(...)` calls, ALWAYS emit one of the render-view-direction
+  snippets above (`+X`, `isometric`, or `default`). `Show()` alone does not
+  frame the camera under `pvpython`; without one of these snippets the
+  default camera will be inside or far away from the data and the saved
+  screenshot will be empty.
+- Do NOT set `renderView.CameraPosition`, `renderView.CameraFocalPoint`,
+  or `renderView.CameraViewUp` directly unless you are using the
+  `place camera explicitly` snippet, and even then call `ResetCamera()`
+  first. Hand-rolled camera coordinates without `ResetCamera()` are the
+  second most common cause of a blank screenshot, after the contour
+  array-name mistake.
+- "Rotate the view to look in the +X direction" in a user prompt means
+  emit the `set render view direction (+X)` snippet, not invent
+  `CameraPosition = [1, 0, 0]`.
 
 ## Displays
 
