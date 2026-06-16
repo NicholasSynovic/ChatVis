@@ -43,9 +43,9 @@ mkdir -p "${OUT_DIR}"
 # _EXPECTED_DATA_BY_SCENARIO; if these drift, chatvis will warn at
 # runtime but still proceed.
 declare -A DATASET=(
-    [ml-dvr]="ml-100.vti"
-    [ml-iso]="ml-100.vti"
-    [ml-slice-iso]="ml-100.vti"
+    [ml-dvr]="ml-100.vtk"
+    [ml-iso]="ml-100.vtk"
+    [ml-slice-iso]="ml-100.vtk"
     [points-surf-clip]="can_points.ex2"
     [stream-glyph]="disk.ex2"
 )
