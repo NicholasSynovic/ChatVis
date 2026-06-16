@@ -38,28 +38,33 @@ class CLI:
             epilog=self.epilog,
         )
 
-        # --- Group 1: Scenario & Data Options ---
-        data_group = ap.add_argument_group("Scenario & Data Options")
-        data_group.add_argument(
-            "--scenario",
-            choices=SCENARIOS,
-            default=SCENARIOS[0],
-            help="ChatVis paper scenario to execute (default: %(default)s)",
-        )
-        data_group.add_argument(
-            "--data-filepath",
-            type=lambda x: Path(x).absolute(),
-            required=True,
-            help="Path to data file to evaluate",
-        )
-        data_group.add_argument(
-            "--screenshot-path",
-            type=lambda x: Path(x).absolute(),
-            required=True,
-            help="Path where the generated ParaView screenshot should be written",
+        # ----- Globals (apply to every subcommand) -----
+
+        # --- Group: Global Options ---
+        # Using a custom group for version ensures it isn't lost under the
+        # default "options" catch-all block.
+        global_group = ap.add_argument_group("Global Options")
+        global_group.add_argument(
+            "-V",
+            "--version",
+            action="version",
+            version=f"%(prog)s {__version__}",
+            help="Show the application version and exit",
         )
 
-        # --- Group 2: LLM & Authentication Options ---
+        # --- Group: Execution Options ---
+        execution_group = ap.add_argument_group("Execution Options")
+        execution_group.add_argument(
+            "--pvpython",
+            type=lambda x: Path(x).absolute(),
+            default=_default_pvpython(),
+            help=(
+                "Path to the pvpython executable used to run generated "
+                "ParaView scripts (default: first pvpython on PATH)"
+            ),
+        )
+
+        # --- Group: LLM & Authentication Options ---
         llm_group = ap.add_argument_group("LLM & Authentication Options")
         llm_group.add_argument(
             "--model",
@@ -80,18 +85,62 @@ class CLI:
             help="LLM API endpoint URL (default: %(default)s)",
         )
 
-        # --- Group 3: Execution Options ---
-        execution_group = ap.add_argument_group("Execution Options")
-        execution_group.add_argument(
-            "--pvpython",
-            type=lambda x: Path(x).absolute(),
-            default=_default_pvpython(),
-            help=(
-                "Path to the pvpython executable used to run generated "
-                "ParaView scripts (default: first pvpython on PATH)"
+        # --- Group: Logging Options ---
+        logging_group = ap.add_argument_group("Logging Options")
+        logging_group.add_argument(
+            "--log-file",
+            action="store_true",
+            help="Write log output to <cwd>/chatvis_<unix-seconds>.log",
+        )
+        logging_group.add_argument(
+            "--log-level",
+            choices=LOG_LEVELS,
+            default=DEFAULT_LOG_LEVEL,
+            help="Logging verbosity (default: %(default)s)",
+        )
+
+        # ----- Subcommands -----
+        subparsers = ap.add_subparsers(
+            dest="subcommand",
+            required=True,
+            metavar="{v1,v2}",
+            title="Subcommands",
+        )
+
+        # ----- v1 subcommand -----
+        v1 = subparsers.add_parser(
+            "v1",
+            help="Run the v1 single-scenario pipeline",
+            description=(
+                "Run the v1 single-scenario pipeline (prompt improvement -> "
+                "code generation -> pvpython -> bounded repair loop)."
             ),
         )
-        execution_group.add_argument(
+
+        # --- v1 Group: Scenario & Data Options ---
+        v1_data_group = v1.add_argument_group("Scenario & Data Options")
+        v1_data_group.add_argument(
+            "--scenario",
+            choices=SCENARIOS,
+            default=SCENARIOS[0],
+            help="ChatVis paper scenario to execute (default: %(default)s)",
+        )
+        v1_data_group.add_argument(
+            "--data-filepath",
+            type=lambda x: Path(x).absolute(),
+            required=True,
+            help="Path to data file to evaluate",
+        )
+        v1_data_group.add_argument(
+            "--screenshot-path",
+            type=lambda x: Path(x).absolute(),
+            required=True,
+            help="Path where the generated ParaView screenshot should be written",
+        )
+
+        # --- v1 Group: Execution Options ---
+        v1_execution_group = v1.add_argument_group("Execution Options")
+        v1_execution_group.add_argument(
             "--max-repair-attempts",
             type=int,
             default=DEFAULT_MAX_REPAIR_ATTEMPTS,
@@ -101,30 +150,14 @@ class CLI:
             ),
         )
 
-        # --- Group 4: Logging Options ---
-        logging_group = ap.add_argument_group("Logging Options")
-        logging_group.add_argument(
-            "--log-file",
-            action="store_true",
-            help="Also write log output to <cwd>/chatvis_<unix-seconds>.log",
-        )
-        logging_group.add_argument(
-            "--log-level",
-            choices=LOG_LEVELS,
-            default=DEFAULT_LOG_LEVEL,
-            help="Logging verbosity (default: %(default)s)",
-        )
-
-        # --- Group 5: Global Options ---
-        # Note: Using a custom group for version ensures it isn't lost
-        # under the default "options" catch-all block.
-        global_group = ap.add_argument_group("Global Options")
-        global_group.add_argument(
-            "-V",
-            "--version",
-            action="version",
-            version=f"%(prog)s {__version__}",
-            help="Show the application version and exit",
+        # ----- v2 subcommand (placeholder) -----
+        subparsers.add_parser(
+            "v2",
+            help="Placeholder for the v2 RAG-based agent (not yet wired)",
+            description=(
+                "Placeholder for the v2 RAG-based agent. Argument parsing "
+                "succeeds but the v2 pipeline is not yet wired into main.py."
+            ),
         )
 
         return ap.parse_args()
