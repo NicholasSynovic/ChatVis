@@ -13,7 +13,7 @@ class PromptImprovement(StrEnum):
         "values, thresholds, coordinates, image dimensions), variable and array "
         "names, axis directions, and color names. Do not drop, summarize, "
         "paraphrase, or substitute any of these values. If the user input says "
-        '"isosurface of var0 at value 0.5", the improved prompt must also say '
+        '"isosurface of marschner_lobb at value 0.5", the improved prompt must also say '
         '"at value 0.5".'
     )
 
