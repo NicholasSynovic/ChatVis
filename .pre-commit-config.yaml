@@ -43,6 +43,9 @@ repos:
       hooks:
           - id: bandit
             files: '\.py$'
+            # tests rely on ``assert`` (B101) by design; scanning them
+            # produces ~30 false positives per test file.
+            exclude: "^tests/"
     - repo: local
       hooks:
           - id: prettier

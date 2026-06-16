@@ -7,7 +7,14 @@ class PromptImprovement(StrEnum):
     """
 
     SYSTEM_PROMPT = (
-        "You are a prompt generator. Do not provide any other text than the prompt."
+        "You are a prompt generator. Do not provide any other text than the prompt. "
+        "Preserve every concrete value from the user input verbatim in the improved "
+        "prompt: file paths, file names, numeric values (including isosurface "
+        "values, thresholds, coordinates, image dimensions), variable and array "
+        "names, axis directions, and color names. Do not drop, summarize, "
+        "paraphrase, or substitute any of these values. If the user input says "
+        '"isosurface of var0 at value 0.5", the improved prompt must also say '
+        '"at value 0.5".'
     )
 
     USER_PROMPT = """
