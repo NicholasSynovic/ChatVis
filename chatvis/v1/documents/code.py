@@ -51,9 +51,30 @@ slice1.PointMergeMethod = 'Uniform Binning'
     CONTOUR = """
 from paraview.simple import *
 # create a new contour.
+#
 # Use the isosurface value from the user prompt verbatim; if the user does
 # not specify one, derive the isosurface from `(min + max) / 2` or from the
 # DATA_RANGE snippet.
+#
+# Array-name substitution: the literal `'var0'` below is a PLACEHOLDER.
+# Replace it with the scalar array named in the user prompt (e.g.
+# `'marschner_lobb'`). If the user prompt does NOT name an array, do not
+# leave `'var0'` in the script -- emit the DATA_RANGE snippet first and
+# use the first PointData array name explicitly, e.g.:
+#
+#     reader.UpdatePipeline()
+#     array_name = reader.PointData.GetArray(0).GetName()
+#     contour1.ContourBy = ['POINTS', array_name]
+#
+# Leaving the literal `'var0'` in the generated script when the dataset
+# has no array of that name causes ParaView to log
+# `Contour array is null` and produce an empty geometry that renders as
+# a blank screenshot. This is the most common silent failure for the
+# contour / slice-contour scenarios.
+#
+# Input substitution: when the contour follows another filter (e.g. a
+# slice), set `Input=` to that filter's variable (e.g. `Input=slice1`),
+# not to the original reader.
 contour1 = Contour(registrationName='Contour1', Input=ml100vtk)
 contour1.ContourBy = ['POINTS', 'var0']
 contour1.Isosurfaces = [0.5]
@@ -121,7 +142,31 @@ clipDisplay.Representation = 'Wireframe'
 
     VOLUME_DISPLAY = """
 from paraview.simple import *
-# show data as a volume rendering using the configured transfer functions
+# show data as a volume rendering using the configured transfer functions for var0.
+#
+# THIS SNIPPET IS ATOMIC. Emit ALL of the following lines together --
+# omitting LookupTable or ScalarOpacityFunction produces a solid-black
+# bounding cube (every ray sample hits opaque black), not a "default"
+# volume rendering.
+#
+# Required predecessors, in order:
+#   1. DATA_RANGE         -- defines `min` and `max` in scope.
+#   2. COLOR_TRANSFER_FUNCTION   -- defines `var0LUT`.
+#   3. OPACITY_TRANSFER_FUNCTION -- defines `var0PWF`.
+#
+# Array-name substitution: when the user prompt names a different scalar
+# array (e.g. 'marschner_lobb'), replace EVERY occurrence of `var0` in
+# the DATA_RANGE / COLOR_TRANSFER_FUNCTION / OPACITY_TRANSFER_FUNCTION /
+# VOLUME_DISPLAY chain consistently -- in the ColorArrayName tuple, in
+# the GetColorTransferFunction / GetOpacityTransferFunction string
+# arguments, and in the local variable names (e.g. `marschner_lobbLUT`,
+# `marschner_lobbPWF`). Mismatches between the array name passed to
+# ColorArrayName and the name passed to GetColorTransferFunction will
+# also render solid black.
+#
+# "Default transfer function" in a user prompt means "use the ramps
+# defined by COLOR_TRANSFER_FUNCTION and OPACITY_TRANSFER_FUNCTION
+# above" -- it does NOT mean "omit the transfer functions".
 ml100vtkDisplay = Show(ml100vtk, renderView)
 ml100vtkDisplay.Representation = 'Volume'
 ml100vtkDisplay.ColorArrayName = ['POINTS', 'var0']
@@ -136,17 +181,23 @@ renderView = CreateView('RenderView')
 renderView.ViewSize = [1920, 1080]
 """
 
-    RENDER_VIEW_DIRECTION = """
+    POSITIVE_X_RENDER_VIEW_DIRECTION = """
 from paraview.simple import *
-# set render view direction
+# set render view direction to positive X
 renderView.ResetCamera()
 renderView.ResetActiveCameraToPositiveX()
 """
 
-    ISOMETRIC_VIEW = """
+    ISOMETRIC_RENDER_VIEW_DIRECTION = """
 from paraview.simple import *
-# set render view direction
+# set render view direction to an isometric view
 renderView.ApplyIsometricView()
+renderView.ResetCamera()
+"""
+
+    DEFAULT_RENDER_VIEW_DIRECTION = """
+from paraview.simple import *
+# set render view direction to the default position
 renderView.ResetCamera()
 """
 
