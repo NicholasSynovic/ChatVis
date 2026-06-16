@@ -9,7 +9,7 @@ class UserPrompts(StrEnum):
     ML_ISO = """
 Please generate a ParaView Python script for the following operations.
 Read in the file named {input_path}.
-Generate an isosurface of the variable var0 at value 0.5.
+Generate an isosurface of the variable marschner_lobb at value 0.5.
 Save a screenshot of the result in the filename {output_path}.
 The rendered view and saved screenshot should be 1920 x 1080 pixels.
 """
@@ -18,7 +18,7 @@ The rendered view and saved screenshot should be 1920 x 1080 pixels.
 Please generate a ParaView Python script for the following operations. \
 Read in the file named {input_path}.
 Slice the volume in a plane parallel to the y-z plane at x=0.
-Take a contour through the slice at the value 0.5.
+Take a contour of the variable marschner_lobb through the slice at the value 0.5.
 Color the contour red.
 Rotate the view to look at the +x direction.
 Save a screenshot of the result in the filename {output_path}.
@@ -28,7 +28,7 @@ The rendered view and saved screenshot should be 1920 x 1080 pixels.
     ML_DVR = """
 Please generate a ParaView Python script for the following operations.
 Read in the file named {input_path}.
-Generate a volume rendering using the default transfer function.
+Generate a volume rendering using the default transfer function of the variable marschner_lobb.
 Rotate the view to an isometric direction.
 Save a screenshot of the result in the filename {output_path}.
 The rendered view and saved screenshot should be 1920 x 1080 pixels.
