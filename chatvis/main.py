@@ -97,8 +97,15 @@ def _run_and_extract_errors(
     pvpython_path: Path | None,
     script_path: Path,
     logger: Logger,
-) -> list[str]:
-    """Execute ``script_path`` and return any extracted tracebacks."""
+) -> tuple[list[str], str]:
+    """Execute ``script_path`` and return any extracted tracebacks plus stdout.
+
+    The stdout text is propagated back so the orchestrator can feed it
+    into the next repair-iteration prompt; the LLM sometimes asks the
+    script to ``print(...)`` diagnostic information (e.g. available
+    PointData array names) and previously had no way to see what its
+    own previous attempt printed.
+    """
     returncode, stdout, stderr = run_pvpython(
         pvpython_path=pvpython_path,
         script_path=script_path,
@@ -108,7 +115,7 @@ def _run_and_extract_errors(
         logger.debug("pvpython stdout:\n%s", stdout)
     if stderr:
         logger.debug("pvpython stderr:\n%s", stderr)
-    return extract_error_messages(stderr)
+    return extract_error_messages(stderr), stdout
 
 
 def run_pipeline(cli_args: Namespace, logger: Logger) -> int:
@@ -169,7 +176,7 @@ def run_pipeline(cli_args: Namespace, logger: Logger) -> int:
     # ----- Stage 4: execute, repair if needed -----
     logger.info("[4/4] Executing script under pvpython...")
     try:
-        errors: list[str] = _run_and_extract_errors(
+        errors, stdout = _run_and_extract_errors(
             pvpython_path=cli_args.pvpython,
             script_path=script_path,
             logger=logger,
@@ -199,6 +206,7 @@ def run_pipeline(cli_args: Namespace, logger: Logger) -> int:
             improved_prompt=improved_prompt,
             broken_script=broken_script,
             errors="\n".join(errors),
+            stdout=stdout,
         )
         logger.debug(
             "Raw LLM response (repair attempt %d):\n%s",
@@ -216,7 +224,7 @@ def run_pipeline(cli_args: Namespace, logger: Logger) -> int:
             return _EXIT_REPAIR_EXHAUSTED
         write_script(code=fixed_source, script_path=script_path)
 
-        errors = _run_and_extract_errors(
+        errors, stdout = _run_and_extract_errors(
             pvpython_path=cli_args.pvpython,
             script_path=script_path,
             logger=logger,
