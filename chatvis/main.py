@@ -1,6 +1,14 @@
 """ChatVis CLI entry point and end-to-end pipeline orchestrator.
 
-Wires the four pipeline stages together:
+The CLI is subcommand-based (see :mod:`chatvis.cli`). :func:`main`
+dispatches on the chosen subcommand:
+
+* ``v1`` --- the wired single-scenario pipeline, executed by
+  :func:`run_v1_pipeline`.
+* ``v2`` --- a placeholder for a future RAG-based agent; selecting it
+  logs an error and exits :data:`_EXIT_NOT_IMPLEMENTED`.
+
+The v1 pipeline wires four stages together:
 
 1. :func:`chatvis.llm.improve_prompt` rewrites a stock scenario
    description as an LLM-improved prompt.
@@ -20,7 +28,8 @@ Exit codes:
 * ``0`` --- script executed cleanly (no extracted tracebacks).
 * ``1`` --- repair loop exhausted without producing a clean run.
 * ``2`` --- pre-flight configuration error (missing data file,
-  missing or non-executable pvpython, unknown scenario).
+  missing or non-executable pvpython).
+* ``3`` --- selected subcommand is not implemented (e.g. ``v2``).
 """
 
 import logging
@@ -51,6 +60,7 @@ _EXPECTED_DATA_BY_SCENARIO: dict[str, str] = {
 _EXIT_OK: int = 0
 _EXIT_REPAIR_EXHAUSTED: int = 1
 _EXIT_CONFIG_ERROR: int = 2
+_EXIT_NOT_IMPLEMENTED: int = 3
 
 
 def setup_logger(log_to_file: bool, log_level: str) -> Logger:
@@ -118,8 +128,8 @@ def _run_and_extract_errors(
     return extract_error_messages(stderr), stdout
 
 
-def run_pipeline(cli_args: Namespace, logger: Logger) -> int:
-    """Execute the full pipeline. Returns the process exit code."""
+def run_v1_pipeline(cli_args: Namespace, logger: Logger) -> int:
+    """Execute the full v1 pipeline. Returns the process exit code."""
     # ----- Pre-flight -----
     try:
         check_data(
@@ -246,6 +256,12 @@ def run_pipeline(cli_args: Namespace, logger: Logger) -> int:
     return _EXIT_REPAIR_EXHAUSTED
 
 
+# Back-compat alias. ``run_pipeline`` was the single-pipeline entry
+# point before the CLI gained ``v1`` / ``v2`` subcommands; keep the
+# name available so any out-of-tree caller does not break.
+run_pipeline = run_v1_pipeline
+
+
 def main() -> None:
     cli_args: Namespace = CLI().parser()
 
@@ -256,7 +272,22 @@ def main() -> None:
 
     logger.debug("Command line args: %s", cli_args.__dict__)
 
-    exit_code: int = run_pipeline(cli_args=cli_args, logger=logger)
+    exit_code: int
+    if cli_args.subcommand == "v1":
+        exit_code = run_v1_pipeline(cli_args=cli_args, logger=logger)
+    elif cli_args.subcommand == "v2":
+        logger.error(
+            "The v2 subcommand is a placeholder; the RAG-based agent is "
+            "not yet wired. Use the v1 subcommand."
+        )
+        exit_code = _EXIT_NOT_IMPLEMENTED
+    else:
+        # Defensive: argparse already requires a known subcommand, but
+        # guard so a future subparser addition cannot silently fall
+        # through to a NameError or AttributeError.
+        logger.error("Unknown subcommand: %r", cli_args.subcommand)
+        exit_code = _EXIT_CONFIG_ERROR
+
     sys.exit(exit_code)
 
 
