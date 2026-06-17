@@ -663,7 +663,7 @@ class CodeEmbeddings:
 
         # If fauss_index_path exists, load it
         if self.faiss_index_path.exists():
-            self.faiss_index = read_index(self.faiss_index_path._str)
+            self.faiss_index = read_index(str(self.faiss_index_path))
             self.logger.debug("Loaded faiss index from: %s", self.faiss_index_path)
 
         # If metadata_lookup_path exists, load it
@@ -752,7 +752,7 @@ class CodeEmbeddings:
 
         # Write index to disk
         self.logger.debug("Writing faiss index to disk: %s", self.faiss_index_path)
-        write_index(self.faiss_index, self.faiss_index_path._str)
+        write_index(self.faiss_index, str(self.faiss_index_path))
         self.logger.info("Wrote faiss index to disk: %s", self.faiss_index_path)
 
         # Write metadata lookup to disk
@@ -764,6 +764,18 @@ class CodeEmbeddings:
 
     def query(self, text: str) -> list[str]:
         data: list[str] = []
+
+        # Both the FAISS index and the metadata lookup must be populated
+        # before a query can be served. They are populated either by
+        # loading from disk in __init__ (when the files exist) or by
+        # calling embed_documents(). Guard here so a premature query
+        # surfaces a legible error instead of an AttributeError on None.
+        if self.faiss_index is None or self.metadata_lookup is None:
+            raise RuntimeError(
+                "CodeEmbeddings.query() called before the index was built; "
+                "call embed_documents() first or point the constructor at an "
+                "existing faiss index / metadata lookup."
+            )
 
         # Generate an embedding of the text
         query_embedding: np.ndarray = self._embed_text(text=text).reshape(1, -1)
