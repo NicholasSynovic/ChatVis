@@ -5,12 +5,18 @@ not covered here because they require either a live LLM or a non-trivial
 stub of the OpenAI client; that belongs in an integration suite.
 """
 
+import logging
 from pathlib import Path
 from types import SimpleNamespace
+
+import httpx
+import pytest
+from openai import BadRequestError
 
 from chatvis.llm import (
     _FEW_SHOT_KEY_BY_SCENARIO,
     ARGO_HOST,
+    FALLBACK_TEMPERATURE,
     OpenAIModel,
     _substitute_paths,
     generate_code_v2,
@@ -18,6 +24,89 @@ from chatvis.llm import (
     parse_response,
 )
 from chatvis.v1.documents.prompts import GeneratedPrompt
+
+
+def _temperature_400() -> BadRequestError:
+    """Build a 400 that rejects the ``temperature`` value, OpenAI shape."""
+    response = httpx.Response(
+        400, request=httpx.Request("POST", "http://example.test/v1")
+    )
+    return BadRequestError(
+        "Unsupported value: 'temperature' does not support 0.0",
+        response=response,
+        body={
+            "error": {
+                "message": "Unsupported value: 'temperature' does not support 0.0",
+                "type": "invalid_request_error",
+                "param": "temperature",
+                "code": "unsupported_value",
+            },
+        },
+    )
+
+
+def _other_400() -> BadRequestError:
+    """Build a 400 unrelated to ``temperature`` (must NOT trigger a retry)."""
+    response = httpx.Response(
+        400, request=httpx.Request("POST", "http://example.test/v1")
+    )
+    return BadRequestError(
+        "Invalid value for 'messages'",
+        response=response,
+        body={
+            "error": {
+                "message": "Invalid value for 'messages'",
+                "type": "invalid_request_error",
+                "param": "messages",
+                "code": "invalid_value",
+            },
+        },
+    )
+
+
+def _fake_completion(content: str = "ok") -> SimpleNamespace:
+    return SimpleNamespace(
+        system_fingerprint="fp",
+        choices=[
+            SimpleNamespace(message=SimpleNamespace(content=content)),
+        ],
+    )
+
+
+class _RecordingClient:
+    """Minimal stand-in for the OpenAI ``Client``.
+
+    Records every ``temperature`` passed to ``chat.completions.create`` and
+    pops a pre-seeded list of side effects (each either an exception to
+    raise or a value to return).
+    """
+
+    def __init__(self, side_effects: list[object]) -> None:
+        self._side_effects = side_effects
+        self.temperatures: list[float] = []
+        # Mirror the real ``client.chat.completions.create`` attribute path.
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, *, temperature: float, **_: object) -> object:
+        self.temperatures.append(temperature)
+        effect = self._side_effects.pop(0)
+        if isinstance(effect, Exception):
+            raise effect
+        return effect
+
+    @property
+    def call_count(self) -> int:
+        return len(self.temperatures)
+
+
+def _model_with_client(client: _RecordingClient) -> OpenAIModel:
+    model = OpenAIModel(
+        api_key="user",
+        model_name="gpt4o",
+        endpoint="https://example.test/v1",
+    )
+    model.client = client  # type: ignore[assignment]
+    return model
 
 
 class _CapturingModel:
@@ -66,6 +155,54 @@ class TestOpenAIModelArgo:
         )
         assert model.argo is True
         assert model.client.default_headers.get("Host") == ARGO_HOST
+
+
+class TestOpenAIModelTemperatureRetry:
+    """A model that only accepts temperature=1 must be handled gracefully:
+    log the 400, retry once at the fallback temperature, and succeed.
+    """
+
+    def test_retries_with_fallback_temperature_and_succeeds(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        client = _RecordingClient([_temperature_400(), _fake_completion("done")])
+        model = _model_with_client(client)
+        with caplog.at_level(logging.WARNING, logger="chatvis.llm"):
+            response = model.chat(system_prompt="sys", user_prompt="usr")
+        assert parse_response(response) == "done"  # type: ignore[arg-type]
+        # First attempt used the deterministic default, retry used the fallback.
+        assert client.temperatures == [0.0, FALLBACK_TEMPERATURE]
+        assert any(
+            "retrying once with temperature" in r.getMessage() for r in caplog.records
+        )
+
+    def test_non_temperature_400_propagates_without_retry(self) -> None:
+        client = _RecordingClient([_other_400()])
+        model = _model_with_client(client)
+        with pytest.raises(BadRequestError):
+            model.chat(system_prompt="sys", user_prompt="usr")
+        assert client.call_count == 1
+
+    def test_second_temperature_failure_propagates(self) -> None:
+        client = _RecordingClient([_temperature_400(), _temperature_400()])
+        model = _model_with_client(client)
+        with pytest.raises(BadRequestError):
+            model.chat(system_prompt="sys", user_prompt="usr")
+        # One initial attempt + exactly one retry, then give up.
+        assert client.temperatures == [0.0, FALLBACK_TEMPERATURE]
+
+    def test_no_retry_when_caller_already_requested_fallback(self) -> None:
+        # If the caller explicitly asked for temperature=1 and it still 400s,
+        # there is nothing to fall back to, so re-raise immediately.
+        client = _RecordingClient([_temperature_400()])
+        model = _model_with_client(client)
+        with pytest.raises(BadRequestError):
+            model.chat(
+                system_prompt="sys",
+                user_prompt="usr",
+                temperature=FALLBACK_TEMPERATURE,
+            )
+        assert client.temperatures == [FALLBACK_TEMPERATURE]
 
 
 class TestSubstitutePaths:

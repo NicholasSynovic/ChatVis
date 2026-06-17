@@ -71,7 +71,7 @@ optparse.define short=m long=model variable=MODEL \
     desc="LLM model" default=""
 optparse.define short=e long=endpoint variable=ENDPOINT \
     desc="LLM API endpoint URL" default=""
-optparse.define short=a long=argo variable=ARGO \
+optparse.define short=a long=argo-shim variable=ARGO_SHIM \
     desc="Use Argonne Argo gateway quirks (no TLS verify + Host header)" \
     default="false" value="true"
 optparse.define short=p long=pvpython variable=PVPYTHON \
@@ -168,7 +168,7 @@ GLOBAL_ARGS=(--username "${USERNAME}")
 [[ -n "${MODEL}" ]] && GLOBAL_ARGS+=(--model "${MODEL}")
 [[ -n "${ENDPOINT}" ]] && GLOBAL_ARGS+=(--endpoint "${ENDPOINT}")
 [[ -n "${PVPYTHON}" ]] && GLOBAL_ARGS+=(--pvpython "${PVPYTHON}")
-[[ "${ARGO}" != "false" ]] && GLOBAL_ARGS+=(--argo-shim)
+[[ "${ARGO_SHIM}" != "false" ]] && GLOBAL_ARGS+=(--argo-shim)
 [[ -n "${LOG_LEVEL}" ]] && GLOBAL_ARGS+=(--log-level "${LOG_LEVEL}")
 [[ "${LOG_FILE}" != "false" ]] && GLOBAL_ARGS+=(--log-file)
 

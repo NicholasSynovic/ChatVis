@@ -36,7 +36,7 @@ from logging import Logger
 from pathlib import Path
 
 import httpx
-from openai import Client
+from openai import BadRequestError, Client
 from openai.types.chat import ChatCompletion
 
 from chatvis.v1.documents.prompts import GeneratedPrompt
@@ -72,6 +72,11 @@ DEFAULT_N: int = 1
 # Host header expected by Argonne's internal Argo gateway. Only sent when
 # the client is constructed with ``argo=True`` (see ``OpenAIModel``).
 ARGO_HOST: str = "apps.inside.anl.gov"
+
+# Some models reject any non-default sampling temperature and only accept
+# ``1``. When the backend returns a 400 of this shape we retry once with
+# this fallback rather than aborting the whole pipeline.
+FALLBACK_TEMPERATURE: float = 1.0
 
 
 class OpenAIModel:
@@ -135,6 +140,12 @@ class OpenAIModel:
         Per-call overrides fall back to the instance defaults so that
         callers that want strict reproducibility do not have to thread
         the sampling parameters through every call site.
+
+        If the backend rejects the requested ``temperature`` with a 400
+        (some models accept only the default ``1``), the error is logged
+        and the request is retried exactly once with
+        :data:`FALLBACK_TEMPERATURE`. Any other :class:`BadRequestError`,
+        and a second temperature failure, propagate unchanged.
         """
         effective_seed: int = self.seed if seed is None else seed
         effective_temperature: float = (
@@ -153,23 +164,74 @@ class OpenAIModel:
             effective_n,
         )
 
-        response: ChatCompletion = self.client.chat.completions.create(
-            model=self.model_name,
-            seed=effective_seed,
-            temperature=effective_temperature,
-            top_p=effective_top_p,
-            n=effective_n,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            stream=False,
-        )
+        def _create(temperature: float) -> ChatCompletion:
+            return self.client.chat.completions.create(
+                model=self.model_name,
+                seed=effective_seed,
+                temperature=temperature,
+                top_p=effective_top_p,
+                n=effective_n,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                stream=False,
+            )
+
+        try:
+            response: ChatCompletion = _create(effective_temperature)
+        except BadRequestError as exc:
+            # Only retry the narrow "this model only supports temperature=1"
+            # case, and only when we have not already tried that value.
+            if (
+                not _is_temperature_unsupported(exc)
+                or effective_temperature == FALLBACK_TEMPERATURE
+            ):
+                raise
+            self.logger.warning(
+                "Model %s rejected temperature=%s; retrying once with "
+                "temperature=%s. Original error: %s",
+                self.model_name,
+                effective_temperature,
+                FALLBACK_TEMPERATURE,
+                exc,
+            )
+            response = _create(FALLBACK_TEMPERATURE)
+
         self.logger.debug(
             "LLM system_fingerprint=%s",
             getattr(response, "system_fingerprint", None),
         )
         return response
+
+
+def _is_temperature_unsupported(exc: BadRequestError) -> bool:
+    """Return ``True`` if ``exc`` is a 400 rejecting the ``temperature`` value.
+
+    Some models accept only the default ``temperature`` of ``1`` and reject
+    any explicit value with a 400 ``unsupported_value`` error. We detect
+    that case so the caller can retry, while letting every other
+    ``BadRequestError`` propagate untouched.
+
+    Two error shapes are tolerated:
+
+    * a clean OpenAI error whose ``body`` carries a top-level
+      ``{"param": "temperature", ...}``; and
+    * Argonne's Argo gateway, which double-wraps the upstream error so the
+      ``param`` / ``code`` fields live inside a *stringified* inner
+      ``message`` rather than at the top level. For that shape we fall back
+      to a substring scan of the rendered error text.
+    """
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict) and error.get("param") == "temperature":
+            return True
+
+    text: str = str(exc).lower()
+    return "temperature" in text and (
+        "does not support" in text or "unsupported_value" in text
+    )
 
 
 def parse_response(response: ChatCompletion) -> str:
