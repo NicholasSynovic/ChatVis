@@ -12,6 +12,12 @@ the three pipeline-stage helpers:
   the captured ``pvpython`` errors, ask the LLM to fix the failing line
   without rewriting the rest of the script.
 
+The v2 (RAG) pipeline reuses :class:`OpenAIModel` and :func:`parse_response`
+but has its own two stage helpers, :func:`generate_code_v2` and
+:func:`improve_code_v2`. v2 has no prompt-improvement stage: the retrieved
+ParaView snippets are injected into the *user* prompt at code-generation
+time (see :class:`chatvis.v2.prompts.code_generation.CodeGeneration`).
+
 Prompt source-of-truth split:
 
 * The *user's own* scenario input comes from :class:`UserPrompts`,
@@ -37,6 +43,8 @@ from chatvis.v1.prompts.code_generation import CodeGeneration
 from chatvis.v1.prompts.code_improvement import CodeImprovement
 from chatvis.v1.prompts.prompt_improvement import PromptImprovement
 from chatvis.v1.prompts.user_prompts import UserPrompts
+from chatvis.v2.prompts.code_generation import CodeGeneration as CodeGenerationV2
+from chatvis.v2.prompts.code_improvement import CodeImprovement as CodeImprovementV2
 
 # Few-shot pair to show for each scenario during prompt improvement.
 # Rule: pick a pair from a *different* scenario family than the one
@@ -167,7 +175,7 @@ def _substitute_paths(text: str, input_path: Path, output_path: Path) -> str:
     )
 
 
-def improve_prompt(
+def improve_prompt_v1(
     model: OpenAIModel,
     scenario: str,
     input_path: Path,
@@ -242,7 +250,7 @@ def improve_prompt(
     return parse_response(response=response)
 
 
-def generate_code(model: OpenAIModel, improved_prompt: str) -> str:
+def generate_code_v1(model: OpenAIModel, improved_prompt: str) -> str:
     """Run the code-generation stage.
 
     Sends :data:`CodeGeneration.SYSTEM_PROMPT` (which embeds every
@@ -271,7 +279,7 @@ def generate_code(model: OpenAIModel, improved_prompt: str) -> str:
     return parse_response(response=response)
 
 
-def improve_code(
+def improve_code_v1(
     model: OpenAIModel,
     improved_prompt: str,
     broken_script: str,
@@ -325,6 +333,87 @@ def improve_code(
     )
     response: ChatCompletion = model.chat(
         system_prompt=CodeImprovement.SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+    )
+    return parse_response(response=response)
+
+
+def generate_code_v2(
+    model: OpenAIModel,
+    prompt: str,
+    code_snippets: str,
+) -> str:
+    """Run the v2 (RAG) code-generation stage.
+
+    Unlike v1, there is no prompt-improvement step: the user's scenario
+    description is sent verbatim alongside the ParaView snippets
+    retrieved from the FAISS index. Both are formatted into
+    :data:`chatvis.v2.prompts.code_generation.CodeGeneration.USER_PROMPT`
+    (``{prompt}`` plus ``{code_snippets}``); the static guidance lives in
+    that class's ``SYSTEM_PROMPT``.
+
+    Args:
+        model: configured chat-completions client.
+        prompt: the scenario description, typically built from
+            :class:`chatvis.v1.prompts.user_prompts.UserPrompts`.
+        code_snippets: the retrieved example operations, already
+            serialised into a single string ready to drop into the
+            ``json`` fence of the user prompt.
+
+    Returns:
+        The raw LLM response content (Markdown text including one or
+        more fenced Python blocks). Extraction is the caller's job.
+    """
+    user_prompt: str = CodeGenerationV2.USER_PROMPT.format(
+        prompt=prompt,
+        code_snippets=code_snippets,
+    )
+    response: ChatCompletion = model.chat(
+        system_prompt=CodeGenerationV2.SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+    )
+    return parse_response(response=response)
+
+
+def improve_code_v2(
+    model: OpenAIModel,
+    broken_script: str,
+    errors: str,
+    stdout: str = "",
+) -> str:
+    """Run the v2 (RAG) code-improvement (repair) stage.
+
+    The repair user prompt
+    (:data:`chatvis.v2.prompts.code_improvement.CodeImprovement.USER_PROMPT`)
+    carries only ``{errors}`` / ``{script}`` / ``{stdout}``; the retrieved
+    snippets are not re-injected here. The system prompt is reused from
+    :data:`chatvis.v2.prompts.code_generation.CodeGeneration.SYSTEM_PROMPT`
+    so the repair stage operates under the same visualization-scripting
+    guidance as generation.
+
+    Args:
+        model: configured chat-completions client.
+        broken_script: the on-disk Python script that ``pvpython`` failed
+            on. Pass the extracted script rather than the raw LLM
+            response so the LLM sees exactly what was executed.
+        errors: the failure text to show the LLM, typically
+            ``"\\n".join(extract_error_messages(stderr))``.
+        stdout: the captured standard-output text from the previous
+            ``pvpython`` run. Defaults to the empty string. Threaded into
+            the user prompt so the LLM can read any diagnostic
+            information the previous script printed.
+
+    Returns:
+        The raw LLM response content (Markdown text including one or
+        more fenced Python blocks). Extraction is the caller's job.
+    """
+    user_prompt: str = CodeImprovementV2.USER_PROMPT.format(
+        errors=errors,
+        script=broken_script,
+        stdout=stdout,
+    )
+    response: ChatCompletion = model.chat(
+        system_prompt=CodeGenerationV2.SYSTEM_PROMPT,
         user_prompt=user_prompt,
     )
     return parse_response(response=response)
