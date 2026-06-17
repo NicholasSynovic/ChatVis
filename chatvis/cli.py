@@ -177,13 +177,12 @@ class CLI:
         # ----- v2 subcommand -----
         v2 = subparsers.add_parser(
             "v2",
-            help="Configure the v2 RAG-based agent (pipeline not yet wired)",
+            help="Run the v2 RAG-based pipeline",
             description=(
-                "Configure the v2 RAG-based agent (prompt-driven FAISS "
+                "Run the v2 RAG-based pipeline (prompt-driven FAISS "
                 "retrieval -> code generation -> pvpython -> bounded repair "
-                "loop). Argument parsing succeeds, but the v2 pipeline is "
-                "not yet wired into main.py, so selecting v2 currently exits "
-                "with code 3."
+                "loop). The FAISS index and metadata lookup are built on "
+                "demand when the configured paths do not exist."
             ),
         )
 
