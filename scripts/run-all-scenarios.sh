@@ -16,6 +16,7 @@
 #   -c --chatvis-version      Pipeline to run: v1 or v2 (default: v1)
 #   -m --model                LLM model (default: chatvis default, gpt4o)
 #   -e --endpoint             LLM API endpoint URL (default: chatvis default)
+#   -a --argo                 Use Argonne Argo gateway quirks (no TLS verify + Host header): true|false (default: false)
 #   -p --pvpython             Path to pvpython (default: first on PATH)
 #   -l --log-level            debug|info|warning|error|critical (default: chatvis default)
 #   -f --log-file             Enable chatvis file logging: true|false (default: false)
@@ -32,11 +33,11 @@
 # to remember the ordering or the v1-vs-v2 split.
 #
 # Examples:
-#   scripts/run-all-scenarios.sh -u jdoe
-#   scripts/run-all-scenarios.sh -u jdoe -c v2
-#   scripts/run-all-scenarios.sh -u jdoe -r 10 -l debug
-#   scripts/run-all-scenarios.sh -u jdoe -c v2 -k 8 -s stream-glyph,ml-iso
-#   scripts/run-all-scenarios.sh --username jdoe --pvpython /opt/paraview/bin/pvpython
+#   scripts/run-all-scenarios.sh -u jdoe -a
+#   scripts/run-all-scenarios.sh -u jdoe -a -c v2
+#   scripts/run-all-scenarios.sh -u jdoe -a -r 10 -l debug
+#   scripts/run-all-scenarios.sh -u jdoe -a -c v2 -k 8 -s stream-glyph,ml-iso
+#   scripts/run-all-scenarios.sh --username jdoe --argo --pvpython /opt/paraview/bin/pvpython
 #
 # Outputs (under --out-dir, default <repo>/out):
 #   <scenario>.png   - generated screenshot
@@ -70,6 +71,9 @@ optparse.define short=m long=model variable=MODEL \
     desc="LLM model" default=""
 optparse.define short=e long=endpoint variable=ENDPOINT \
     desc="LLM API endpoint URL" default=""
+optparse.define short=a long=argo variable=ARGO \
+    desc="Use Argonne Argo gateway quirks (no TLS verify + Host header)" \
+    default="false" value="true"
 optparse.define short=p long=pvpython variable=PVPYTHON \
     desc="Path to the pvpython executable" default=""
 optparse.define short=l long=log-level variable=LOG_LEVEL \
@@ -164,6 +168,7 @@ GLOBAL_ARGS=(--username "${USERNAME}")
 [[ -n "${MODEL}" ]] && GLOBAL_ARGS+=(--model "${MODEL}")
 [[ -n "${ENDPOINT}" ]] && GLOBAL_ARGS+=(--endpoint "${ENDPOINT}")
 [[ -n "${PVPYTHON}" ]] && GLOBAL_ARGS+=(--pvpython "${PVPYTHON}")
+[[ "${ARGO}" != "false" ]] && GLOBAL_ARGS+=(--argo)
 [[ -n "${LOG_LEVEL}" ]] && GLOBAL_ARGS+=(--log-level "${LOG_LEVEL}")
 [[ "${LOG_FILE}" != "false" ]] && GLOBAL_ARGS+=(--log-file)
 

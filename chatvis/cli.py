@@ -4,7 +4,23 @@ from pathlib import Path
 
 from chatvis import __prog__, __version__
 
-MODELS: list[str] = ["gpt4o"]
+MODELS: list[str] = [
+    "gpt41",
+    "gpt41mini",
+    "gpt41nano",
+    "gpt4o",
+    "gpt5",
+    "gpt51",
+    "gpt52",
+    "gpt54",
+    "gpt55",
+    "gpt5mini",
+    "gpt5nano",
+    "gpto1",
+    "gpto3",
+    "gpto3mini",
+    "gpto4mini",
+]
 LOG_LEVELS: list[str] = ["debug", "info", "warning", "error", "critical"]
 DEFAULT_LOG_LEVEL: str = "info"
 DEFAULT_ENDPOINT: str = "https://apps.inside.anl.gov/argoapi/v1"
@@ -134,6 +150,15 @@ class CLI:
             type=str,
             default=DEFAULT_ENDPOINT,
             help="LLM API endpoint URL (default: %(default)s)",
+        )
+        llm_group.add_argument(
+            "--argo",
+            action="store_true",
+            help=(
+                "Configure the client for Argonne's internal Argo endpoint: "
+                "disable TLS certificate verification and send a "
+                "'Host: apps.inside.anl.gov' header. Off by default"
+            ),
         )
 
         # --- Group: Logging Options ---

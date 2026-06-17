@@ -15,7 +15,7 @@ The rendered view and saved screenshot should be 1920 x 1080 pixels.
 """
 
     ML_SLICE_ISO = """
-Please generate a ParaView Python script for the following operations. \
+Please generate a ParaView Python script for the following operations.
 Read in the file named {input_path}.
 Slice the volume in a plane parallel to the y-z plane at x=0.
 Take a contour of the variable marschner_lobb through the slice at the value 0.5.

@@ -57,6 +57,7 @@ def _make_cli_args(tmp_path: Path) -> SimpleNamespace:
         username="user",
         model="gpt4o",
         endpoint="http://example.invalid",
+        argo=False,
         pvpython=Path("/usr/bin/pvpython"),
     )
 

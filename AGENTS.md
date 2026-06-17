@@ -20,11 +20,14 @@ Single scenario (Linux, `pvpython` on `PATH`). Globals first, then `v1`, then v1
 ```bash
 uv run python -m chatvis.main \
     --username <your-anl-id> \
+    --argo \
     v1 \
     --scenario stream-glyph \
     --data-filepath data/disk.ex2 \
     --screenshot-path /tmp/stream-glyph.png
 ```
+
+`--argo` is a global flag (it goes before the subcommand) that opts into the internal Argo gateway's quirks (disables TLS certificate verification and sends a `Host: apps.inside.anl.gov` header). It is **off by default**; omit it for any standards-compliant OpenAI-compatible endpoint.
 
 All five scenarios in batch with summary table:
 
@@ -120,6 +123,7 @@ The package collapses all of the above into a single `--model gpt4o` against Arg
 ## Conventions
 
 - The package targets **Argonne's Argo API** — an OpenAI-compatible endpoint at `https://apps.inside.anl.gov/argoapi/v1` (`chatvis/cli.py:DEFAULT_ENDPOINT`). Authentication is by ANL username passed as `api_key` to the OpenAI `Client`. **Not** plain OpenAI. Do not add `OPENAI_API_KEY` loading.
+- The Argo gateway's quirks — disabling TLS certificate verification and sending a `Host: apps.inside.anl.gov` header — are **no longer hardcoded**. They are gated behind the global `--argo` flag (`chatvis/cli.py`), which flows into `OpenAIModel(argo=...)` (`chatvis/llm.py`) at both call sites in `chatvis/main.py`. `--argo` is **off by default**: the client verifies TLS and sends no custom `Host` header unless the flag is passed. The host string lives in `chatvis.llm.ARGO_HOST`. `run-all-scenarios.sh` forwards it via `--argo`/`-a`.
 - `--model` choices are restricted to `["gpt4o"]` (`chatvis/cli.py:MODELS`). Adding a new model means updating the CLI choices and confirming Argo accepts it.
 - Logging: every submodule uses `logging.getLogger(__name__)`. `chatvis/logger.py` configures the `chatvis` root logger and disables propagation.
 - When porting more notebook behavior, follow the migration target: prompts in `chatvis/v1/prompts/`, data in `chatvis/v1/documents/`, orchestration in `chatvis/llm.py` and `chatvis/main.py`.

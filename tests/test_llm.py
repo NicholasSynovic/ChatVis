@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 from chatvis.llm import (
     _FEW_SHOT_KEY_BY_SCENARIO,
+    ARGO_HOST,
+    OpenAIModel,
     _substitute_paths,
     generate_code_v2,
     improve_code_v2,
@@ -38,6 +40,32 @@ class _CapturingModel:
                 SimpleNamespace(message=SimpleNamespace(content=self.content)),
             ],
         )
+
+
+class TestOpenAIModelArgo:
+    """The Argo quirks (no TLS verification + custom Host header) must be
+    strictly opt-in via ``argo=`` and off by default.
+    """
+
+    def test_default_sends_no_host_header(self) -> None:
+        model = OpenAIModel(
+            api_key="user",
+            model_name="gpt4o",
+            endpoint="https://example.test/v1",
+        )
+        assert model.argo is False
+        # No custom Argo Host header injected by default.
+        assert model.client.default_headers.get("Host") != ARGO_HOST
+
+    def test_argo_disables_tls_and_sets_host_header(self) -> None:
+        model = OpenAIModel(
+            api_key="user",
+            model_name="gpt4o",
+            endpoint="https://example.test/v1",
+            argo=True,
+        )
+        assert model.argo is True
+        assert model.client.default_headers.get("Host") == ARGO_HOST
 
 
 class TestSubstitutePaths:

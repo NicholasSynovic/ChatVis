@@ -168,6 +168,7 @@ def run_v1_pipeline(cli_args: Namespace, logger: Logger) -> int:
         api_key=cli_args.username,
         model_name=cli_args.model,
         endpoint=cli_args.endpoint,
+        argo=cli_args.argo,
         logger=logger,
     )
 
@@ -359,6 +360,7 @@ def run_v2_pipeline(cli_args: Namespace, logger: Logger) -> int:
         api_key=cli_args.username,
         model_name=cli_args.model,
         endpoint=cli_args.endpoint,
+        argo=cli_args.argo,
         logger=logger,
     )
 

@@ -88,6 +88,7 @@ non-zero with a placeholder error.
 ```bash
 uv run python -m chatvis.main \
     --username <your-anl-id> \
+    --argo \
     v1 \
     --scenario stream-glyph \
     --data-filepath data/disk.ex2 \
@@ -99,27 +100,33 @@ Equivalently, after `uv sync`:
 ```bash
 uv run chatvis \
     --username <your-anl-id> \
+    --argo \
     v1 \
     --scenario stream-glyph \
     --data-filepath data/disk.ex2 \
     --screenshot-path /tmp/stream-glyph.png
 ```
 
+`--argo` configures the client for Argonne's internal Argo gateway
+(disables TLS certificate verification and sends a
+`Host: apps.inside.anl.gov` header). It is **off by default**; drop it
+when targeting a standards-compliant OpenAI-compatible endpoint.
+
 ### All scenarios
 
 ```bash
-scripts/run-all-scenarios.sh <your-anl-id> [global flags ...] [-- [v1 flags ...]]
+scripts/run-all-scenarios.sh --username <your-anl-id> [options]
 ```
 
 The script runs each of the five scenarios against its expected dataset,
-continues past individual failures, and prints a pass/fail summary. The
-`--` sentinel separates additional global flags from v1-only flags; if
-omitted, all extra args are passed to `v1` (the common case). Examples:
+continues past individual failures, and prints a pass/fail summary. Every
+option has a short and long form; see `--help` for the full list. Pass
+`--argo`/`-a` to enable the internal Argo gateway quirks. Examples:
 
 ```bash
-scripts/run-all-scenarios.sh jdoe
-scripts/run-all-scenarios.sh jdoe --max-repair-attempts 10
-scripts/run-all-scenarios.sh jdoe --log-level debug -- --max-repair-attempts 10
+scripts/run-all-scenarios.sh -u jdoe -a
+scripts/run-all-scenarios.sh -u jdoe -a -r 10
+scripts/run-all-scenarios.sh -u jdoe -a -l debug -r 10
 ```
 
 ### Scenarios and datasets
@@ -139,15 +146,16 @@ not rejected — `pvpython` and the LLM both accept whatever path you supply.
 
 Global flags (apply to every subcommand):
 
-| Flag              | Default                                  | Notes                                                   |
-| ----------------- | ---------------------------------------- | ------------------------------------------------------- |
-| `--username`      | _required_                               | ANL username; used as the Argo API key.                 |
-| `--model`         | `gpt4o`                                  | Only `gpt4o` is currently accepted.                     |
-| `--endpoint`      | `https://apps.inside.anl.gov/argoapi/v1` | Argo OpenAI-compatible endpoint.                        |
-| `--pvpython`      | `shutil.which("pvpython")`               | Override if `pvpython` is not on `PATH`.                |
-| `--log-file`      | _off_                                    | Also write logs to `<cwd>/chatvis_<unix-seconds>.log`.  |
-| `--log-level`     | `info`                                   | One of `debug`, `info`, `warning`, `error`, `critical`. |
-| `-V`, `--version` | —                                        | Print the installed version and exit.                   |
+| Flag              | Default                                  | Notes                                                                                              |
+| ----------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `--username`      | _required_                               | ANL username; used as the Argo API key.                                                            |
+| `--model`         | `gpt4o`                                  | Only `gpt4o` is currently accepted.                                                                |
+| `--endpoint`      | `https://apps.inside.anl.gov/argoapi/v1` | Argo OpenAI-compatible endpoint.                                                                   |
+| `--argo`          | _off_                                    | Disable TLS verification + send `Host: apps.inside.anl.gov`; needed for the internal Argo gateway. |
+| `--pvpython`      | `shutil.which("pvpython")`               | Override if `pvpython` is not on `PATH`.                                                           |
+| `--log-file`      | _off_                                    | Also write logs to `<cwd>/chatvis_<unix-seconds>.log`.                                             |
+| `--log-level`     | `info`                                   | One of `debug`, `info`, `warning`, `error`, `critical`.                                            |
+| `-V`, `--version` | —                                        | Print the installed version and exit.                                                              |
 
 `v1` subcommand flags:
 

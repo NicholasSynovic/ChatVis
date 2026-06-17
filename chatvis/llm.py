@@ -35,6 +35,7 @@ import logging
 from logging import Logger
 from pathlib import Path
 
+import httpx
 from openai import Client
 from openai.types.chat import ChatCompletion
 
@@ -68,6 +69,10 @@ DEFAULT_TEMPERATURE: float = 0.0
 DEFAULT_TOP_P: float = 1.0
 DEFAULT_N: int = 1
 
+# Host header expected by Argonne's internal Argo gateway. Only sent when
+# the client is constructed with ``argo=True`` (see ``OpenAIModel``).
+ARGO_HOST: str = "apps.inside.anl.gov"
+
 
 class OpenAIModel:
     """Thin wrapper around the OpenAI Chat Completions API.
@@ -78,6 +83,12 @@ class OpenAIModel:
     All sampling parameters default to deterministic values so two runs
     issued against the same backend revision should return identical
     content. Override per call only when nondeterminism is desired.
+
+    The ``argo`` flag opts into the quirks of Argonne's internal Argo
+    gateway: it disables TLS certificate verification and sends a
+    ``Host: apps.inside.anl.gov`` header. It is **off by default** so the
+    wrapper talks to standards-compliant OpenAI-compatible endpoints
+    securely; enable it only when targeting the internal Argo endpoint.
     """
 
     def __init__(
@@ -89,6 +100,7 @@ class OpenAIModel:
         temperature: float = DEFAULT_TEMPERATURE,
         top_p: float = DEFAULT_TOP_P,
         n: int = DEFAULT_N,
+        argo: bool = False,
         logger: Logger | None = None,
     ) -> None:
         self.logger: Logger = (
@@ -100,9 +112,13 @@ class OpenAIModel:
         self.temperature: float = temperature
         self.top_p: float = top_p
         self.n: int = n
+        self.argo: bool = argo
+        default_headers: dict[str, str] = {"Host": ARGO_HOST} if argo else {}
         self.client: Client = Client(
             base_url=self.endpoint,
             api_key=api_key,
+            default_headers=default_headers,
+            http_client=httpx.Client(verify=not argo),
         )
 
     def chat(
@@ -147,6 +163,7 @@ class OpenAIModel:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            stream=False,
         )
         self.logger.debug(
             "LLM system_fingerprint=%s",
