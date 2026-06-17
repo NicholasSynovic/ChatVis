@@ -4,7 +4,7 @@ from enum import StrEnum
 class CodeGeneration(StrEnum):
     """
     Use `prompt` when formatting the USER_PROMPT.
-    SYSTEM_PROMPT appends RAG returned code snippets via `code_snippets`
+    USER_PROMPT appends RAG returned code snippets via `code_snippets`
     """
 
     SYSTEM_PROMPT = """
