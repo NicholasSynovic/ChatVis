@@ -8,8 +8,36 @@ stub of the OpenAI client; that belongs in an integration suite.
 from pathlib import Path
 from types import SimpleNamespace
 
-from chatvis.llm import _FEW_SHOT_KEY_BY_SCENARIO, _substitute_paths, parse_response
+from chatvis.llm import (
+    _FEW_SHOT_KEY_BY_SCENARIO,
+    _substitute_paths,
+    generate_code_v2,
+    improve_code_v2,
+    parse_response,
+)
 from chatvis.v1.documents.prompts import GeneratedPrompt
+
+
+class _CapturingModel:
+    """Stub ``OpenAIModel`` that records the prompts it is handed.
+
+    ``chat`` returns a minimal ``ChatCompletion``-shaped object so the
+    real :func:`parse_response` can extract its content unchanged.
+    """
+
+    def __init__(self, content: str = "ok") -> None:
+        self.content: str = content
+        self.system_prompt: str | None = None
+        self.user_prompt: str | None = None
+
+    def chat(self, system_prompt: str, user_prompt: str):  # noqa: ANN201
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content=self.content)),
+            ],
+        )
 
 
 class TestSubstitutePaths:
@@ -107,3 +135,48 @@ class TestFewShotKeyByScenario:
             # ``improve_prompt`` derefs both.
             assert f"{key}_INPUT" in GeneratedPrompt.__members__
             assert f"{key}_OUTPUT" in GeneratedPrompt.__members__
+
+
+class TestGenerateCodeV2:
+    def test_injects_prompt_and_snippets_into_user_prompt(self) -> None:
+        model = _CapturingModel(content="```python\npass\n```")
+        result: str = generate_code_v2(
+            model=model,  # type: ignore[arg-type]
+            prompt="DESCRIBE THE SCENARIO",
+            code_snippets='[{"name": "foo"}]',
+        )
+        assert result == "```python\npass\n```"
+        assert "DESCRIBE THE SCENARIO" in model.user_prompt  # type: ignore[operator]
+        assert '[{"name": "foo"}]' in model.user_prompt  # type: ignore[operator]
+        # No unfilled placeholders left behind.
+        assert "{prompt}" not in model.user_prompt  # type: ignore[operator]
+        assert "{code_snippets}" not in model.user_prompt  # type: ignore[operator]
+
+
+class TestImproveCodeV2:
+    def test_injects_errors_script_stdout_into_user_prompt(self) -> None:
+        model = _CapturingModel(content="fixed")
+        result: str = improve_code_v2(
+            model=model,  # type: ignore[arg-type]
+            broken_script="SCRIPT BODY",
+            errors="BOOM",
+            stdout="DIAGNOSTIC",
+        )
+        assert result == "fixed"
+        assert "BOOM" in model.user_prompt  # type: ignore[operator]
+        assert "SCRIPT BODY" in model.user_prompt  # type: ignore[operator]
+        assert "DIAGNOSTIC" in model.user_prompt  # type: ignore[operator]
+        assert "{errors}" not in model.user_prompt  # type: ignore[operator]
+        assert "{script}" not in model.user_prompt  # type: ignore[operator]
+        assert "{stdout}" not in model.user_prompt  # type: ignore[operator]
+
+    def test_stdout_defaults_to_empty_string(self) -> None:
+        model = _CapturingModel()
+        improve_code_v2(
+            model=model,  # type: ignore[arg-type]
+            broken_script="s",
+            errors="e",
+        )
+        # The {stdout} placeholder must still be consumed even when the
+        # caller omits stdout.
+        assert "{stdout}" not in model.user_prompt  # type: ignore[operator]
