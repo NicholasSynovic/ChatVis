@@ -152,7 +152,7 @@ class CLI:
             help="LLM API endpoint URL (default: %(default)s)",
         )
         llm_group.add_argument(
-            "--argo",
+            "--argo-shim",
             action="store_true",
             help=(
                 "Configure the client for Argonne's internal Argo endpoint: "

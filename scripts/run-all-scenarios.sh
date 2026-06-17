@@ -16,7 +16,7 @@
 #   -c --chatvis-version      Pipeline to run: v1 or v2 (default: v1)
 #   -m --model                LLM model (default: chatvis default, gpt4o)
 #   -e --endpoint             LLM API endpoint URL (default: chatvis default)
-#   -a --argo                 Use Argonne Argo gateway quirks (no TLS verify + Host header): true|false (default: false)
+#   -a --argo-shim                 Use Argonne Argo gateway quirks (no TLS verify + Host header): true|false (default: false)
 #   -p --pvpython             Path to pvpython (default: first on PATH)
 #   -l --log-level            debug|info|warning|error|critical (default: chatvis default)
 #   -f --log-file             Enable chatvis file logging: true|false (default: false)
@@ -37,7 +37,7 @@
 #   scripts/run-all-scenarios.sh -u jdoe -a -c v2
 #   scripts/run-all-scenarios.sh -u jdoe -a -r 10 -l debug
 #   scripts/run-all-scenarios.sh -u jdoe -a -c v2 -k 8 -s stream-glyph,ml-iso
-#   scripts/run-all-scenarios.sh --username jdoe --argo --pvpython /opt/paraview/bin/pvpython
+#   scripts/run-all-scenarios.sh --username jdoe --argo-shim --pvpython /opt/paraview/bin/pvpython
 #
 # Outputs (under --out-dir, default <repo>/out):
 #   <scenario>.png   - generated screenshot
@@ -168,7 +168,7 @@ GLOBAL_ARGS=(--username "${USERNAME}")
 [[ -n "${MODEL}" ]] && GLOBAL_ARGS+=(--model "${MODEL}")
 [[ -n "${ENDPOINT}" ]] && GLOBAL_ARGS+=(--endpoint "${ENDPOINT}")
 [[ -n "${PVPYTHON}" ]] && GLOBAL_ARGS+=(--pvpython "${PVPYTHON}")
-[[ "${ARGO}" != "false" ]] && GLOBAL_ARGS+=(--argo)
+[[ "${ARGO}" != "false" ]] && GLOBAL_ARGS+=(--argo-shim)
 [[ -n "${LOG_LEVEL}" ]] && GLOBAL_ARGS+=(--log-level "${LOG_LEVEL}")
 [[ "${LOG_FILE}" != "false" ]] && GLOBAL_ARGS+=(--log-file)
 
