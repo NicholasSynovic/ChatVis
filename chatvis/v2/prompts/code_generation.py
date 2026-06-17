@@ -2,6 +2,11 @@ from enum import StrEnum
 
 
 class CodeGeneration(StrEnum):
+    """
+    Use `prompt` when formatting the USER_PROMPT.
+    SYSTEM_PROMPT appends RAG returned code snippets via `code_snippets`
+    """
+
     SYSTEM_PROMPT = """
 # Primary Goal
 
@@ -52,4 +57,14 @@ layout.AssignView(0, renderView).
 - Add concise comments to explain significant steps.
 - Avoid redundant operations and unnecessary reconfiguration.
 - Ensure compatibility with standard 3D visualization libraries (e.g., ParaView, VTK).
+
+Follow example operations:
+
+```json
+{code_snippets}
+```
+"""
+
+    USER_PROMPT = """
+{prompt}
 """
