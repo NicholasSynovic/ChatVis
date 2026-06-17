@@ -1,10 +1,10 @@
-"""Unit tests for :mod:`chatvis.v1.script`."""
+"""Unit tests for :mod:`chatvis.script`."""
 
 from pathlib import Path
 
 import pytest
 
-from chatvis.v1.script import derive_script_path, first_python_block, write_script
+from chatvis.script import derive_script_path, first_python_block, write_script
 
 
 class TestDeriveScriptPath:

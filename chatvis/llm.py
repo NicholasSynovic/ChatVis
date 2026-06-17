@@ -295,7 +295,7 @@ def improve_code(
             stage knows what the script was *meant* to achieve.
         broken_script: the on-disk Python script that ``pvpython``
             failed on, i.e. the output of
-            :func:`chatvis.v1.script.first_python_block` after
+            :func:`chatvis.script.first_python_block` after
             :func:`generate_code`. Pass the extracted script rather than
             the raw LLM response so the LLM sees exactly what was
             executed.

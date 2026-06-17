@@ -14,10 +14,10 @@ The v1 pipeline wires four stages together:
    description as an LLM-improved prompt.
 2. :func:`chatvis.llm.generate_code` asks the LLM for a ParaView
    script implementing the improved prompt.
-3. :func:`chatvis.v1.script.first_python_block` +
-   :func:`chatvis.v1.script.write_script` extract and persist the
+3. :func:`chatvis.script.first_python_block` +
+   :func:`chatvis.script.write_script` extract and persist the
    script.
-4. :func:`chatvis.v1.pvpython.run_pvpython` executes the script.
+4. :func:`chatvis.pvpython.run_pvpython` executes the script.
 
 If pvpython produces a traceback, :func:`chatvis.llm.improve_code`
 is called in a bounded repair loop driven by
@@ -41,9 +41,9 @@ from pathlib import Path
 from chatvis.cli import CLI
 from chatvis.llm import OpenAIModel, generate_code, improve_code, improve_prompt
 from chatvis.logger import configure_logging
+from chatvis.pvpython import run_pvpython
+from chatvis.script import derive_script_path, first_python_block, write_script
 from chatvis.utils import extract_error_messages
-from chatvis.v1.pvpython import run_pvpython
-from chatvis.v1.script import derive_script_path, first_python_block, write_script
 
 # Scenario -> expected dataset basename. Mismatches log a warning but
 # do not abort: the LLM never inspects the file, so a user running an
