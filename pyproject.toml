@@ -5,8 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "numpy>=2.4.6",
-    "openai>=2.41.0",
+    "faiss-cpu==1.14.3",
+    "numpy==2.4.6",
+    "openai==2.41.0",
+    "pandas>=3.0.3",
+    "progress>=1.6.1",
+    "sentence-transformers>=5.6.0",
 ]
 
 [dependency-groups]

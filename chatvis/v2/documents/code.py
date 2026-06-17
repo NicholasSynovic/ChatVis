@@ -1,3 +1,13 @@
+from json import dumps
+from logging import Logger, getLogger
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from faiss import Index, IndexFlatL2, read_index, write_index
+from progress.bar import Bar
+from sentence_transformers import SentenceTransformer
+
 CODE_SNIPPETS: list[dict[str, str]] = [
     {
         "name": "Create/Configure Two Views",
@@ -620,3 +630,154 @@ CODE_SNIPPETS: list[dict[str, str]] = [
         "code_snippet": "clip1Display.RescaleTransferFunctionToDataRange(True)",
     },
 ]
+
+
+class CodeEmbeddings:
+    def __init__(
+        self,
+        embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        faiss_index_path: Path = Path("faiss.index"),
+        metadata_lookup_path: Path = Path("metadata_lookup.pickle"),
+        top_k_results: int = 5,
+    ) -> None:
+        # Instantiate logger
+        self.logger: Logger = getLogger(name="chatvis")
+
+        # Empty variables to be populated later
+        self.faiss_index: Index | None = None
+        self.metadata_lookup: pd.DataFrame | None = None
+
+        # Top k results to return from faiss
+        self.top_k_results: int = top_k_results
+        self.logger.debug("Will return %i results from faiss", self.top_k_results)
+
+        # Path lookups
+        self.faiss_index_path: Path = faiss_index_path.absolute()
+        self.logger.debug(
+            "TEST: faiss index path exists: %s", self.faiss_index_path.exists()
+        )
+        self.metadata_lookup_path: Path = metadata_lookup_path.absolute()
+        self.logger.debug(
+            "TEST: metadata lookup path exists: %s", self.metadata_lookup_path.exists()
+        )
+
+        # If fauss_index_path exists, load it
+        if self.faiss_index_path.exists():
+            self.faiss_index = read_index(self.faiss_index_path._str)
+            self.logger.debug("Loaded faiss index from: %s", self.faiss_index_path)
+
+        # If metadata_lookup_path exists, load it
+        if self.metadata_lookup_path.exists():
+            self.metadata_lookup = pd.read_pickle(  # nosec: B301
+                filepath_or_buffer=self.metadata_lookup_path
+            )
+            self.logger.debug(
+                "Loaded metadata lookup from: %s", self.metadata_lookup_path
+            )
+            self.logger.debug(
+                "Metadata lookup pd.DataFrame shape: %s",
+                self.metadata_lookup.shape.__str__(),
+            )
+            self.logger.debug(
+                "Metadata lookup pd.DataFrame head: %s",
+                self.metadata_lookup.head.__str__(),
+            )
+
+        # Load the embedding model
+        self.embedding_model: SentenceTransformer = SentenceTransformer(
+            model_name_or_path=embedding_model_name,
+        )
+
+    def _embed_text(self, text: str) -> np.ndarray:
+        self.logger.debug("Embedding text: %s", text)
+        return self.embedding_model.encode(inputs=text, convert_to_numpy=True).astype(
+            dtype=np.float32
+        )
+
+    def _setup_faiss_index(self) -> None:
+        # Get embedding dimensions, default to 512
+        embedding_dimensions: int | None = (
+            self.embedding_model.get_embedding_dimension()
+        )
+        if embedding_dimensions is None:
+            embedding_dimensions = 512
+
+        # Create empty faiss index
+        self.faiss_index = IndexFlatL2(embedding_dimensions)
+        self.logger.debug(
+            "Created faiss index with dimension size: %d", embedding_dimensions
+        )
+
+    def embed_documents(self) -> None:
+        data: list[dict[str, str | np.ndarray]] = []
+
+        # Initialize faiss_index
+        if self.faiss_index is None:
+            self.logger.error(msg="faiss index not initialized.")
+            self._setup_faiss_index()
+            self.logger.info(msg="faiss index initialized.")
+
+        # If there are vectors in faiss, do not embed more documents
+        if self.faiss_index.ntotal == len(CODE_SNIPPETS):
+            self.logger.debug(
+                "Code snippets most likely loaded into faiss index already"
+            )
+            return
+
+        with Bar("Embedding documents...", max=len(CODE_SNIPPETS)) as bar:
+            # For each code snippet, embed the document
+            snippet: dict[str, str]
+            for snippet in CODE_SNIPPETS:
+                text: str = dumps(obj=snippet, indent=4)
+                text_embedding: np.ndarray = self._embed_text(text=text).reshape(1, -1)
+                self.faiss_index.add(
+                    x=text_embedding
+                )  # faiss index will now always be initialized on all code paths
+                datum: dict[str, str | np.ndarray] = {
+                    "text": text,
+                    "embedding": text_embedding,
+                }
+                data.append(datum)
+                bar.next()
+
+        # Create metadata lookup pd.DataFrame
+        self.metadata_lookup = pd.DataFrame(data=data)
+        self.logger.debug(
+            "Metadata lookup pd.DataFrame shape: %s",
+            self.metadata_lookup.shape.__str__(),
+        )
+        self.logger.debug(
+            "Metadata lookup pd.DataFrame head: %s", self.metadata_lookup.head.__str__()
+        )
+
+        # Write index to disk
+        self.logger.debug("Writing faiss index to disk: %s", self.faiss_index_path)
+        write_index(self.faiss_index, self.faiss_index_path._str)
+        self.logger.info("Wrote faiss index to disk: %s", self.faiss_index_path)
+
+        # Write metadata lookup to disk
+        self.logger.debug(
+            "Writing metdata lookup to disk: %s", self.metadata_lookup_path
+        )
+        self.metadata_lookup.to_pickle(path=self.metadata_lookup_path)
+        self.logger.info("Wrote metdata lookup to disk: %s", self.metadata_lookup_path)
+
+    def query(self, text: str) -> list[str]:
+        data: list[str] = []
+
+        # Generate an embedding of the text
+        query_embedding: np.ndarray = self._embed_text(text=text).reshape(1, -1)
+
+        # Get nearest neighbors of the embedding from faiss
+        indicies: np.ndarray
+        _, indicies = self.faiss_index.search(x=query_embedding, k=self.top_k_results)
+
+        for idx in indicies[0]:
+            data.append(self.metadata_lookup.iloc[idx]["text"])
+
+        return data
+
+
+c = CodeEmbeddings()
+c.embed_documents()
+print(c.query("Isosurface of this dataset"))
