@@ -776,8 +776,3 @@ class CodeEmbeddings:
             data.append(self.metadata_lookup.iloc[idx]["text"])
 
         return data
-
-
-c = CodeEmbeddings()
-c.embed_documents()
-print(c.query("Isosurface of this dataset"))

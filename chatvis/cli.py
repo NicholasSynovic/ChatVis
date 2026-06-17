@@ -17,10 +17,61 @@ SCENARIOS: list[str] = [
     "stream-glyph",
 ]
 
+# v2 RAG defaults. The FAISS index and metadata-lookup pickle default to
+# files named faiss.index / metadata_lookup.pickle in the current working
+# directory, matching CodeEmbeddings' own relative-path defaults in
+# chatvis/v2/documents/code.py. The top-k default mirrors
+# CodeEmbeddings(top_k_results=...) so the CLI and library agree.
+DEFAULT_TOP_K: int = 5
+DEFAULT_FAISS_INDEX: Path = Path("faiss.index")
+DEFAULT_METADATA_LOOKUP: Path = Path("metadata_lookup.pickle")
+
 
 def _default_pvpython() -> Path | None:
     found: str | None = shutil.which("pvpython")
     return Path(found) if found is not None else None
+
+
+def _add_scenario_data_group(parser: ArgumentParser) -> None:
+    """Add the shared scenario/data flags used by both v1 and v2.
+
+    Both subcommands take the same scenario selection plus the dataset
+    and screenshot paths; keeping the definitions in one place stops the
+    two parsers from drifting apart.
+    """
+    group = parser.add_argument_group("Scenario & Data Options")
+    group.add_argument(
+        "--scenario",
+        choices=SCENARIOS,
+        default=SCENARIOS[0],
+        help="ChatVis paper scenario to execute (default: %(default)s)",
+    )
+    group.add_argument(
+        "--data-filepath",
+        type=lambda x: Path(x).absolute(),
+        required=True,
+        help="Path to data file to evaluate",
+    )
+    group.add_argument(
+        "--screenshot-path",
+        type=lambda x: Path(x).absolute(),
+        required=True,
+        help="Path where the generated ParaView screenshot should be written",
+    )
+
+
+def _add_execution_group(parser: ArgumentParser) -> None:
+    """Add the shared repair-loop flag used by both v1 and v2."""
+    group = parser.add_argument_group("Execution Options")
+    group.add_argument(
+        "--max-repair-attempts",
+        type=int,
+        default=DEFAULT_MAX_REPAIR_ATTEMPTS,
+        help=(
+            "Maximum number of code-improvement iterations after the "
+            "initial code-generation attempt (default: %(default)s)"
+        ),
+    )
 
 
 class CLI:
@@ -118,46 +169,58 @@ class CLI:
         )
 
         # --- v1 Group: Scenario & Data Options ---
-        v1_data_group = v1.add_argument_group("Scenario & Data Options")
-        v1_data_group.add_argument(
-            "--scenario",
-            choices=SCENARIOS,
-            default=SCENARIOS[0],
-            help="ChatVis paper scenario to execute (default: %(default)s)",
-        )
-        v1_data_group.add_argument(
-            "--data-filepath",
-            type=lambda x: Path(x).absolute(),
-            required=True,
-            help="Path to data file to evaluate",
-        )
-        v1_data_group.add_argument(
-            "--screenshot-path",
-            type=lambda x: Path(x).absolute(),
-            required=True,
-            help="Path where the generated ParaView screenshot should be written",
-        )
+        _add_scenario_data_group(v1)
 
         # --- v1 Group: Execution Options ---
-        v1_execution_group = v1.add_argument_group("Execution Options")
-        v1_execution_group.add_argument(
-            "--max-repair-attempts",
-            type=int,
-            default=DEFAULT_MAX_REPAIR_ATTEMPTS,
-            help=(
-                "Maximum number of code-improvement iterations after the "
-                "initial code-generation attempt (default: %(default)s)"
+        _add_execution_group(v1)
+
+        # ----- v2 subcommand -----
+        v2 = subparsers.add_parser(
+            "v2",
+            help="Configure the v2 RAG-based agent (pipeline not yet wired)",
+            description=(
+                "Configure the v2 RAG-based agent (prompt-driven FAISS "
+                "retrieval -> code generation -> pvpython -> bounded repair "
+                "loop). Argument parsing succeeds, but the v2 pipeline is "
+                "not yet wired into main.py, so selecting v2 currently exits "
+                "with code 3."
             ),
         )
 
-        # ----- v2 subcommand (placeholder) -----
-        subparsers.add_parser(
-            "v2",
-            help="Placeholder for the v2 RAG-based agent (not yet wired)",
-            description=(
-                "Placeholder for the v2 RAG-based agent. Argument parsing "
-                "succeeds but the v2 pipeline is not yet wired into main.py."
+        # --- v2 Group: Scenario & Data Options ---
+        _add_scenario_data_group(v2)
+
+        # --- v2 Group: RAG Options ---
+        v2_rag_group = v2.add_argument_group("RAG Options")
+        v2_rag_group.add_argument(
+            "--faiss-index",
+            type=lambda x: Path(x).absolute(),
+            default=DEFAULT_FAISS_INDEX,
+            help=(
+                "Path to the FAISS index of ParaView code snippets "
+                "(default: %(default)s)"
             ),
         )
+        v2_rag_group.add_argument(
+            "--metadata-lookup",
+            type=lambda x: Path(x).absolute(),
+            default=DEFAULT_METADATA_LOOKUP,
+            help=(
+                "Path to the pickled snippet metadata lookup paired with "
+                "the FAISS index (default: %(default)s)"
+            ),
+        )
+        v2_rag_group.add_argument(
+            "--top-k",
+            type=int,
+            default=DEFAULT_TOP_K,
+            help=(
+                "Number of code snippets to retrieve from the FAISS index "
+                "per query (default: %(default)s)"
+            ),
+        )
+
+        # --- v2 Group: Execution Options ---
+        _add_execution_group(v2)
 
         return ap.parse_args()
