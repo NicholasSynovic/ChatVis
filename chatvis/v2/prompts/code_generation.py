@@ -35,11 +35,11 @@ Your task is to read and execute the user's prompt line by line, ensuring that a
 - Call ResetCamera() on the render view object so that the camera will be zoomed to fit.
 - If the user manually specifies a camera zoom level, follow their instructions and do not insert extra calls to:
 
-    ```python
-    renderView.ResetCamera();
-    layout = CreateLayout(name='Layout');
-    layout.AssignView(0, renderView).
-    ```
+```python
+renderView.ResetCamera();
+layout = CreateLayout(name='Layout');
+layout.AssignView(0, renderView).
+```
 
 ## Use of Operation Templates
 
