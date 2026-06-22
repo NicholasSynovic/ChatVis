@@ -1,0 +1,29 @@
+{
+    "skill_name": "paraview-coder",
+    "evals": [
+        {
+            "id": 0,
+            "name": "stream-glyph-tubes",
+            "prompt": "I have an Exodus dataset at data/disk.ex2 with a velocity vector field 'V' and a scalar 'Temp'. Write me a Python script I can run with pvpython that traces streamlines through the velocity field from a point-cloud seed, renders the streamlines as tubes, adds cone glyphs along them to show flow direction, and colors both the tubes and glyphs by Temp. Look at it from the +X direction and save a 1920x1080 screenshot to /tmp/stream-glyph.png.",
+            "expected_output": "A single python block: IOSSReader for .ex2, StreamTracer with Point Cloud seed and Vectors=['POINTS','V'], Tube filter, Cone Glyph, both displays colored by Temp via ColorBy, a +X camera reset after Show calls, and SaveScreenshot to /tmp/stream-glyph.png at 1920x1080.",
+            "files": [],
+            "assertions": []
+        },
+        {
+            "id": 1,
+            "name": "isosurface-named-array",
+            "prompt": "Using pvpython, read the legacy VTK file data/ml-100.vtk and create an isosurface (contour) of the scalar array called 'marschner_lobb' at value 0.5. Show it as a solid surface, frame the camera so the whole thing is visible, and write a screenshot to /tmp/iso.png.",
+            "expected_output": "A single python block: LegacyVTKReader for .vtk, Contour with ContourBy referencing 'marschner_lobb' (NOT a leftover 'var0'), Isosurfaces=[0.5], a Show + a camera framing call (ResetCamera or a direction reset), and SaveScreenshot to /tmp/iso.png.",
+            "files": [],
+            "assertions": []
+        },
+        {
+            "id": 2,
+            "name": "points-clip-wireframe",
+            "prompt": "I've got a points-only Exodus file at data/can_points.ex2. With pvpython, build a surface from the points using a 3D Delaunay triangulation, then clip it in half with a plane through the origin with normal +X, display the clipped result as a wireframe, give it an isometric view, and save a screenshot to /tmp/points-clip.png.",
+            "expected_output": "A single python block: IOSSReader for .ex2, Delaunay3D on the reader, Clip with ClipType='Plane', Origin [0,0,0], Normal [1,0,0] (and no reliance on InsideOut), a Wireframe representation, an isometric view, a camera reset, and SaveScreenshot to /tmp/points-clip.png.",
+            "files": [],
+            "assertions": []
+        }
+    ]
+}
