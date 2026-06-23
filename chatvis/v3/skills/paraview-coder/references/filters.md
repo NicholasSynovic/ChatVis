@@ -12,6 +12,7 @@ with the real scalar array name from the request.
 - [IsoVolume](#isovolume)
 - [Threshold](#threshold)
 - [Clip](#clip)
+- [Table To Points](#table-to-points)
 - [Delaunay 3D](#delaunay-3d)
 - [Stream tracer](#stream-tracer)
 - [Tube](#tube)
@@ -65,6 +66,18 @@ array_name = ml100vtk.PointData.GetArray(0).GetName()
 contour1.ContourBy = ['POINTS', array_name]
 ```
 
+For "several contours across the range", sample N isovalues between `min` and
+`max` (see data inspection in `readers.md`) rather than hand-listing them. Use
+`np.logspace` instead only when the data spans orders of magnitude and `min > 0`.
+
+```python
+import numpy as np
+
+contour_values = np.linspace(min, max, 8).tolist()
+# contour_values = np.logspace(np.log10(min), np.log10(max), 8).tolist()  # min > 0
+contour1.Isosurfaces = contour_values
+```
+
 ## IsoVolume
 
 Use to extract the region where a scalar falls within a threshold range
@@ -107,6 +120,19 @@ clip.ClipType.Origin = [0.0, 0.0, 0.0]
 clip.ClipType.Normal = [1.0, 0.0, 0.0]
 ```
 
+## Table To Points
+
+Use to turn a CSV/table (see `CSVReader` in `readers.md`) into a point cloud by
+naming the columns that hold the x/y/z coordinates. The result is geometry you
+can display, triangulate (Delaunay 3D), or clip.
+
+```python
+tableToPoints1 = TableToPoints(registrationName='TableToPoints1', Input=csv)
+tableToPoints1.XColumn = 'x'
+tableToPoints1.YColumn = 'y'
+tableToPoints1.ZColumn = 'z'
+```
+
 ## Delaunay 3D
 
 Use to build a 3D Delaunay triangulation (unstructured grid) from a point set —
@@ -134,6 +160,15 @@ streamTracer.SeedType.Center = [0.0, 0.0, 0.0]
 streamTracer.SeedType.Radius = 2.0
 ```
 
+Optional integration / seeding tuning:
+
+```python
+streamTracer.IntegrationDirection = 'BOTH'        # 'FORWARD', 'BACKWARD', 'BOTH'
+streamTracer.IntegratorType = 'Runge-Kutta 4-5'
+streamTracer.InitialStepLength = 0.1
+streamTracer.SeedType.NumberOfPoints = 100        # denser seed cloud
+```
+
 ## Tube
 
 Use to thicken streamlines (or any polylines) into renderable tubes.
@@ -143,6 +178,14 @@ tube = Tube(registrationName='Tube1', Input=streamTracer)
 tube.Scalars = ['POINTS', 'AngularVelocity']
 tube.Vectors = ['POINTS', 'Normals']
 tube.Radius = 0.075
+```
+
+Optional shape tuning — `NumberOfSides` smooths the cross-section; `VaryRadius`
+makes the tube thickness follow a scalar/vector:
+
+```python
+tube.NumberOfSides = 6
+tube.VaryRadius = 'By Scalar'   # 'Off', 'By Scalar', 'By Vector', 'By Absolute Scalar'
 ```
 
 ## Glyph
@@ -171,6 +214,14 @@ Cap glyph density on large datasets and scale by vector magnitude:
 ```python
 glyph.MaximumNumberOfSamplePoints = 5000
 glyph.VectorScaleMode = 'Scale by Magnitude'
+```
+
+Alternatively, thin glyphs deterministically by taking every Nth point instead of
+random sampling:
+
+```python
+glyph.GlyphMode = 'Every Nth Point'
+glyph.Stride = 10
 ```
 
 A good auto `ScaleFactor` is ~1% of the bounding-box diagonal (compute the

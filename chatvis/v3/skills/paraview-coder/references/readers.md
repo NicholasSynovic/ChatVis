@@ -62,6 +62,24 @@ Use when reading a multi-block dataset or a saved file series.
 canslices = XMLMultiBlockDataReader(FileName=['<input_path>'])
 ```
 
+### `.csv` (CSVReader)
+
+Use for tabular data. A CSV is a table, not geometry — to plot it in 3D, feed it
+through `TableToPoints` to turn named columns into a point cloud (see
+`filters.md`).
+
+```python
+csv = CSVReader(FileName=['<input_path>'])
+```
+
+### `.nc` (NetCDFReader)
+
+Use for NetCDF datasets (often climate/ocean grids).
+
+```python
+reader = NetCDFReader(FileName=['<input_path>'])
+```
+
 ### Generic open / sources
 
 `OpenDataFile` auto-selects a reader by extension when you do not want to commit

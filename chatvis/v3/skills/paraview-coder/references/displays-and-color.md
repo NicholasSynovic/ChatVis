@@ -8,6 +8,7 @@ it if asked. Replace `'var0'` with the real array name throughout.
 - [Showing data & representations](#showing-data--representations)
 - [Coloring by an array](#coloring-by-an-array)
 - [Transfer functions & presets](#transfer-functions--presets)
+- [Color map from a JSON file](#color-map-from-a-json-file)
 - [Volume rendering (atomic)](#volume-rendering-atomic)
 - [Scalar bars (legends)](#scalar-bars-legends)
 - [Multi-block / block coloring](#multi-block--block-coloring)
@@ -68,6 +69,9 @@ var0LUT = GetColorTransferFunction('var0')
 var0LUT.ApplyPreset('Cool to Warm', True)
 ```
 
+`ApplyPreset(var0LUT, 'Cool to Warm', True)` is the equivalent free-function form
+if you prefer it over the method call above.
+
 Snap the lookup table to the actual data range — the reliable rescale call is on
 the _display_, so you do not have to know `min`/`max` yourself:
 
@@ -96,6 +100,30 @@ var0PWF = GetOpacityTransferFunction('var0')
 var0PWF.Points = [min, 0.0, 0.5, 0.0,
                   (min + max) / 2.0, 0.5, 0.5, 0.0,
                   max, 1.0, 0.5, 0.0]
+```
+
+## Color map from a JSON file
+
+Use when the user supplies a color map exported from the ParaView GUI (a `.json`
+file). The file is a list of objects; take the first. `RGBPoints` is the flat
+`[value, r, g, b, ...]` list (same shape as above) and the optional `Points` key
+is the flat `[value, alpha, midpoint, sharpness, ...]` opacity ramp.
+
+```python
+import json
+
+with open('<input_path>') as f:   # the .json color map the user named
+    cm = json.load(f)[0]
+
+var0LUT = GetColorTransferFunction('var0')
+var0LUT.RGBPoints = cm['RGBPoints']
+
+if 'Points' in cm:                 # optional opacity ramp (for volume rendering)
+    var0PWF = GetOpacityTransferFunction('var0')
+    var0PWF.Points = cm['Points']
+    display.ScalarOpacityFunction = var0PWF
+
+display.LookupTable = var0LUT
 ```
 
 ## Volume rendering (atomic)
