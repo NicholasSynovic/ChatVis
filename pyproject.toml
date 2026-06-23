@@ -1,7 +1,7 @@
 [project]
 name = "chatvis"
-version = "0.2.0"
-description = "Add your description here"
+version = "0.3.0"
+description = "ChatVis is an AI-powered assistant that converts natural-language descriptions into fully functional ParaView (pvpython) scientific visualization scripts"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -15,7 +15,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "jupyter>=1.1.1",
     "pytest>=9.0.3",
 ]
 
