@@ -10,11 +10,19 @@ with the real scalar array name from the request.
 - [Slice](#slice)
 - [Contour / isosurface](#contour--isosurface)
 - [IsoVolume](#isovolume)
+- [Threshold](#threshold)
 - [Clip](#clip)
 - [Delaunay 3D](#delaunay-3d)
 - [Stream tracer](#stream-tracer)
 - [Tube](#tube)
 - [Glyph](#glyph)
+- [Warp By Vector](#warp-by-vector)
+- [Transform](#transform)
+- [Gradient](#gradient)
+- [Connectivity](#connectivity)
+- [Extract Surface / Triangulate](#extract-surface--triangulate)
+- [Integrate Variables](#integrate-variables)
+- [Histogram](#histogram)
 - [Calculator](#calculator)
 - [Cell Data to Point Data](#cell-data-to-point-data)
 - [Plot Over Line](#plot-over-line)
@@ -67,6 +75,24 @@ isoVolume1 = IsoVolume(registrationName='IsoVolume1', Input=predictionvtr)
 isoVolume1.InputScalars = ['POINTS', 'Intensity']
 isoVolume1.ThresholdRange = [0.2, 1.0]
 ```
+
+## Threshold
+
+Use to keep only cells whose scalar falls in a value range. On ParaView 5.10+
+the range is set with the separate `LowerThreshold` / `UpperThreshold`
+properties (not a single `ThresholdRange` pair). Use `float('-inf')` /
+`float('inf')` for an open-ended bound.
+
+```python
+threshold1 = Threshold(registrationName='Threshold1', Input=ml100vtk)
+threshold1.Scalars = ['POINTS', 'var0']
+threshold1.LowerThreshold = 0.2
+threshold1.UpperThreshold = 1.0
+threshold1.Invert = 0          # 1 keeps values outside the range
+```
+
+`AllPoints` / `AllScalars` is **not** a valid Threshold property in recent
+ParaView — do not set it.
 
 ## Clip
 
@@ -139,6 +165,116 @@ glyph.GlyphType.Resolution = 10
 glyph.GlyphType.Radius = 0.15
 glyph.GlyphType.Height = 0.5
 ```
+
+Cap glyph density on large datasets and scale by vector magnitude:
+
+```python
+glyph.MaximumNumberOfSamplePoints = 5000
+glyph.VectorScaleMode = 'Scale by Magnitude'
+```
+
+A good auto `ScaleFactor` is ~1% of the bounding-box diagonal (compute the
+diagonal from `bounds` — see `readers.md`).
+
+## Warp By Vector
+
+Use to displace points along a vector field (e.g. exaggerate a deformation).
+
+```python
+warpByVector1 = WarpByVector(registrationName='WarpByVector1', Input=reader)
+warpByVector1.Vectors = ['POINTS', 'V']
+warpByVector1.ScaleFactor = 1.0
+```
+
+## Transform
+
+Use to translate, rotate, or scale a dataset geometrically. The sub-proxy is
+also named `Transform`; set its `Translate` / `Rotate` (degrees) / `Scale`.
+
+```python
+transform1 = Transform(registrationName='Transform1', Input=reader)
+transform1.Transform = 'Transform'
+transform1.Transform.Translate = [1.0, 0.0, 0.0]
+transform1.Transform.Rotate = [0.0, 0.0, 90.0]   # degrees, per axis
+transform1.Transform.Scale = [2.0, 2.0, 2.0]
+```
+
+## Gradient
+
+Use to compute the gradient of a scalar/vector field, and optionally vorticity,
+divergence, or Q-criterion from a vector field. Call `UpdatePipeline()` before
+showing so the new arrays exist.
+
+```python
+gradient1 = Gradient(registrationName='Gradient1', Input=reader)
+gradient1.ScalarArray = ['POINTS', 'V']
+gradient1.ComputeVorticity = 1
+gradient1.ComputeDivergence = 1
+gradient1.ComputeQCriterion = 1
+gradient1.UpdatePipeline()
+```
+
+## Connectivity
+
+Use to label connected regions (each gets a `RegionId`), e.g. to color or
+threshold disjoint components separately.
+
+```python
+connectivity1 = Connectivity(registrationName='Connectivity1', Input=contour1)
+```
+
+## Extract Surface / Triangulate
+
+Use to turn a volumetric dataset (image data, structured/unstructured grid) into
+a triangulated surface — required before exporting to STL/PLY/OBJ
+(see `output.md`). Polydata only needs `Triangulate`.
+
+```python
+extractSurface1 = ExtractSurface(registrationName='ExtractSurface1', Input=reader)
+triangulate1 = Triangulate(registrationName='Triangulate1', Input=extractSurface1)
+```
+
+## Integrate Variables
+
+Use to integrate quantities over the dataset — e.g. surface `Area` of a contour,
+or `Volume` of a solid. The result is a one-row table; fetch it from the server
+and read the cell array. Run on a _surface_ for `Area`.
+
+```python
+import paraview.servermanager as sm
+
+integrateVariables1 = IntegrateVariables(registrationName='IntegrateVariables1', Input=contour1)
+integrateVariables1.UpdatePipeline()
+integrated = sm.Fetch(integrateVariables1)
+area = integrated.GetCellData().GetArray('Area').GetValue(0)
+print('Surface area:', area)
+```
+
+## Histogram
+
+Use to bin a scalar into a frequency distribution. Two quirks: the input array is
+chosen with `SelectInputArray = [location, name]`, and the bin count must be set
+through the proxy property (`NumberOfBins`, or `BinCount` on some versions) —
+direct attribute assignment is rejected.
+
+```python
+import paraview.servermanager as sm
+
+histogram1 = Histogram(registrationName='Histogram1', Input=reader)
+histogram1.SelectInputArray = ['POINTS', 'var0']
+nbins = histogram1.GetProperty('NumberOfBins') or histogram1.GetProperty('BinCount')
+nbins.SetElement(0, 256)
+histogram1.UpdatePipeline()
+
+table = sm.Fetch(histogram1)
+centers = table.GetColumnByName('bin_centers') or table.GetColumn(0)
+freqs = table.GetColumnByName('bin_frequencies') or table.GetColumn(1)
+for i in range(table.GetNumberOfRows()):
+    print(centers.GetValue(i), freqs.GetValue(i))
+```
+
+To show a histogram in a chart view instead of printing it, see
+`layout-and-views.md`.
 
 ## Calculator
 

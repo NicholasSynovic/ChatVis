@@ -58,14 +58,26 @@ glyphDisplay.RescaleTransferFunctionToDataRange(True)
 
 ## Transfer functions & presets
 
-Get the color/opacity transfer functions by array name and apply a named preset:
+Get the color/opacity transfer functions by array name and apply a named preset.
+Common preset names: `'Cool to Warm'`, `'Rainbow Desaturated'`,
+`'Blue to Red Rainbow'`, `'Jet'`, `'Rainbow'`, `'Viridis (matplotlib)'`,
+`'Grayscale'`.
 
 ```python
 var0LUT = GetColorTransferFunction('var0')
-var0LUT.ApplyPreset('Cool to Warm', True)     # or 'Viridis (matplotlib)', etc.
+var0LUT.ApplyPreset('Cool to Warm', True)
 ```
 
-Set an explicit color ramp (requires `min`/`max` in scope — see `readers.md`):
+Snap the lookup table to the actual data range — the reliable rescale call is on
+the _display_, so you do not have to know `min`/`max` yourself:
+
+```python
+display.RescaleTransferFunctionToDataRange(True)
+```
+
+Set an explicit color ramp with `RGBPoints` (requires `min`/`max` in scope — see
+`readers.md`). The flat list is repeated **`[value, r, g, b]`** quadruples, with
+`r`, `g`, `b` in `[0, 1]`:
 
 ```python
 var0LUT = GetColorTransferFunction('var0')
@@ -74,7 +86,10 @@ var0LUT.RGBPoints = [min, 0.0, 0.0, 0.75,
                      max, 0.75, 0.0, 0.0]
 ```
 
-Opacity ramp:
+Set an explicit opacity ramp with `Points`. **Each control point is a quartet**
+`[value, alpha, midpoint, sharpness]` — `alpha` in `[0, 1]`, and the usual
+`midpoint`/`sharpness` are `0.5`/`0.0`. A leftover `[value, alpha]` _pair_ (only
+two numbers per point) is malformed and silently breaks the ramp:
 
 ```python
 var0PWF = GetOpacityTransferFunction('var0')

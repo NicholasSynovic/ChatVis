@@ -128,3 +128,15 @@ than any single snippet.
 
 - **Do not use `clip1.InsideOut`** — it is unreliable here; configure the clip
   plane (`Origin`/`Normal`) to select the side you want instead.
+
+- **Opacity transfer-function points are quartets, not pairs.**
+  `pwf.Points` is a flat list of `[value, alpha, midpoint, sharpness]` per control
+  point (`midpoint`/`sharpness` default to `0.5`/`0.0`). Emitting bare
+  `[value, alpha]` pairs silently corrupts the ramp. Likewise `lut.RGBPoints` is
+  `[value, r, g, b]` quadruples. See `references/displays-and-color.md`.
+
+- **Threshold uses `LowerThreshold`/`UpperThreshold` on ParaView 5.10+**, not a
+  single `ThresholdRange`, and has no `AllPoints` property. The `Histogram`
+  filter's bin count must be set via `GetProperty('NumberOfBins')` /
+  `'BinCount'` + `SetElement(0, n)`, not by direct attribute assignment. See
+  `references/filters.md`.

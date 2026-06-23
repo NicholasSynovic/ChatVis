@@ -8,7 +8,9 @@ default camera sits inside or far from the data and the screenshot is blank.
 
 - [Create a render view](#create-a-render-view)
 - [Camera framing (preferred)](#camera-framing-preferred)
+- [Dolly, rotate & padded framing](#dolly-rotate--padded-framing)
 - [Explicit camera placement](#explicit-camera-placement)
+- [Background color](#background-color)
 - [First-render reset](#first-render-reset)
 
 ## Create a render view
@@ -63,6 +65,32 @@ direction = [0.5, 1, 0.5]
 ResetCameraToDirection(renderView.CameraFocalPoint, direction)
 ```
 
+## Dolly, rotate & padded framing
+
+Operate on the live camera object for incremental moves _after_ a `ResetCamera()`.
+`Dolly` zooms (a factor `< 1` pulls back, leaving margin around the data — handy
+so a screenshot is not cropped tight); `Azimuth` / `Elevation` rotate the camera
+by degrees.
+
+```python
+renderView.ResetCamera()
+camera = renderView.GetActiveCamera()
+camera.Dolly(0.7)          # zoom out ~30% for padding
+camera.Azimuth(30.0)       # rotate around the view-up axis (degrees)
+camera.Elevation(15.0)     # rotate around the horizontal axis (degrees)
+```
+
+To add padding by distance instead of dolly, push the camera along its view
+direction away from the focal point:
+
+```python
+renderView.ResetCamera()
+camera = renderView.GetActiveCamera()
+pos, focal = camera.GetPosition(), camera.GetFocalPoint()
+pad = 1.5                   # 1.0 = tight, 1.5 = 50% margin
+camera.SetPosition([focal[i] + (pos[i] - focal[i]) * pad for i in range(3)])
+```
+
 ## Explicit camera placement
 
 Use only when the framing calls above are not enough (e.g. the user gives exact
@@ -84,6 +112,24 @@ renderView2.CameraPosition = renderView1.CameraPosition
 renderView2.CameraFocalPoint = renderView1.CameraFocalPoint
 renderView2.CameraViewUp = renderView1.CameraViewUp
 ```
+
+## Background color
+
+ParaView draws a **gradient** background by default (`Background` →
+`Background2`). For a flat, solid color set both to the same RGB and disable the
+palette/gradient. On 5.10+ use `BackgroundColorMode`; older versions use
+`UseGradientBackground`.
+
+```python
+renderView.Background = [0.32, 0.34, 0.43]    # RGB in [0, 1]
+renderView.Background2 = [0.32, 0.34, 0.43]   # same color = no gradient
+renderView.UseColorPaletteForBackground = 0
+renderView.BackgroundColorMode = 'Single Color'
+```
+
+To force a named palette (e.g. a white background for a figure) instead, see
+`LoadPalette` in `layout-and-views.md` or `OverrideColorPalette` on
+`SaveScreenshot` in `output.md`.
 
 ## First-render reset
 

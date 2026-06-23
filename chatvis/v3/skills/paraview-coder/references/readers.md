@@ -6,6 +6,7 @@ Pick the reader by file extension. Every script starts with
 ## Contents
 
 - [Readers by extension](#readers-by-extension)
+- [RAW volume files](#raw-volume-files)
 - [Data inspection](#data-inspection)
 
 ## Readers by extension
@@ -75,6 +76,42 @@ an `RTData` scalar; `Sphere()` builds a sphere. Useful for demos/tests.
 
 ```python
 wavelet1 = Wavelet(registrationName='Wavelet1')
+```
+
+## RAW volume files
+
+Use for headerless `.raw` binary volumes. The reader cannot infer geometry, so
+you must set the extent, scalar type, byte order, and component count explicitly.
+Dimensions/type are often encoded in the filename (e.g. `foot_256x256x256_uint8.raw`).
+
+```python
+reader = OpenDataFile('<input_path>')
+reader.DataExtent = [0, 255, 0, 255, 0, 255]   # [0, dim_x-1, 0, dim_y-1, 0, dim_z-1]
+reader.FileDimensionality = 3
+reader.DataScalarType = 'unsigned char'         # see the type map below
+reader.DataByteOrder = 'LittleEndian'           # or 'BigEndian'
+reader.NumberOfScalarComponents = 1
+reader.DataSpacing = [1.0, 1.0, 1.0]            # only set if non-uniform
+```
+
+Map the on-disk data type to ParaView's `DataScalarType`:
+
+| RAW type  | `DataScalarType` |
+| --------- | ---------------- |
+| `uint8`   | `unsigned char`  |
+| `uint16`  | `unsigned short` |
+| `int8`    | `char`           |
+| `int16`   | `short`          |
+| `float32` | `float`          |
+| `float64` | `double`         |
+
+A 3D RAW volume cannot use the default image-slice representation — show it as
+`'Outline'` (cheap) or `'Volume'` (see volume rendering in
+`displays-and-color.md`):
+
+```python
+display = Show(reader, renderView)
+display.SetRepresentationType('Outline')
 ```
 
 ## Data inspection

@@ -8,8 +8,10 @@ the path the user named (or a sensible default like `screenshot.png`).
 
 - [Save a screenshot](#save-a-screenshot)
 - [Save data](#save-data)
+- [Save a mesh (STL / PLY / OBJ)](#save-a-mesh-stl--ply--obj)
 - [Save an animation](#save-an-animation)
 - [Export / import a scene](#export--import-a-scene)
+- [Save the ParaView state](#save-the-paraview-state)
 
 ## Save a screenshot
 
@@ -58,6 +60,22 @@ SaveData('<output_path>', proxy=slice1,
          Filenamesuffix='_%d')
 ```
 
+## Save a mesh (STL / PLY / OBJ)
+
+`SaveData` to a mesh format requires **surface** (polydata) input. Volumetric
+data (image data, structured/unstructured grids) must be turned into a
+triangulated surface first — `ExtractSurface` then `Triangulate` (see
+`filters.md`) — and the triangulated proxy is what you save.
+
+```python
+extractSurface1 = ExtractSurface(Input=contour1)
+triangulate1 = Triangulate(Input=extractSurface1)
+SaveData('<output_path>', proxy=triangulate1)          # e.g. contour.stl
+```
+
+Polydata that is already a surface (e.g. a `Contour` result) can be triangulated
+and saved directly without `ExtractSurface`.
+
 ## Save an animation
 
 For time-varying data, advance the animation and write a movie.
@@ -80,4 +98,14 @@ Import a GLTF/GLB scene into a view:
 
 ```python
 ImportView('<input_path>', view=renderView1)
+```
+
+## Save the ParaView state
+
+Use when the request is to save the whole session (pipeline, views, camera,
+color maps) for reopening in the ParaView GUI rather than producing an image.
+The file must end in `.pvsm`.
+
+```python
+SaveState('<output_path>')                              # e.g. session.pvsm
 ```
