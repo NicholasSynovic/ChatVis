@@ -5,9 +5,21 @@ Pick the reader by file extension. Every script starts with
 
 ## Contents
 
+- [Version check](#version-check)
 - [Readers by extension](#readers-by-extension)
 - [RAW volume files](#raw-volume-files)
 - [Data inspection](#data-inspection)
+
+## Version check
+
+The `paraview.simple` API drifts between versions, so when a call is rejected (or
+you are unsure a property exists locally) emit a version probe rather than
+guessing. This is diagnostic — not boilerplate for every script.
+
+```python
+from paraview.simple import GetParaViewVersion
+print(GetParaViewVersion())   # e.g. (5, 13); APIs below differ across versions
+```
 
 ## Readers by extension
 
@@ -110,6 +122,19 @@ reader.DataScalarType = 'unsigned char'         # see the type map below
 reader.DataByteOrder = 'LittleEndian'           # or 'BigEndian'
 reader.NumberOfScalarComponents = 1
 reader.DataSpacing = [1.0, 1.0, 1.0]            # only set if non-uniform
+```
+
+`ImageReader` is the explicit reader class for the same job — use it when you
+want to name the reader rather than rely on `OpenDataFile`'s extension guess. The
+configuration properties are identical:
+
+```python
+reader = ImageReader(FileNames=['<input_path>'])
+reader.DataScalarType = 'unsigned char'         # see the type map below
+reader.DataByteOrder = 'LittleEndian'           # or 'BigEndian'
+reader.DataExtent = [0, 255, 0, 255, 0, 255]    # [0, dim_x-1, 0, dim_y-1, 0, dim_z-1]
+reader.FileDimensionality = 3
+reader.NumberOfScalarComponents = 1
 ```
 
 Map the on-disk data type to ParaView's `DataScalarType`:
