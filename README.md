@@ -348,3 +348,21 @@ If you use ChatVis, please cite the relevant work:
 ## License
 
 TBD. A license has not yet been specified for this project.
+
+## Acknowledgements
+
+This work builds on and is indebted to the following prior efforts:
+
+- [SciVisAgentSkills (`paraview-viz`)](https://github.com/KuangshiAi/SciVisAgentSkills/tree/main/paraview-viz)
+  — Claude Code agent skills for ParaView scientific visualization (volume
+  rendering, isosurfaces, streamlines, and more).
+- [HPC Skills (`hpc-paraview`)](https://github.com/SciMate-AI/HPC-Skills/tree/main/skills/hpc-paraview)
+  — an HPC-oriented ParaView agent skill from SciMate-AI.
+- [ParaView Skills](https://github.com/TouKaienn/Paraview-Skills) — a Claude
+  Code skill for creating and manipulating 3D ParaView visualizations.
+- [nl2scivis](https://github.com/goodbadwolf/nl2scivis) — the NL2SciVis
+  benchmark for evaluating natural-language-to-ParaView-script generation.
+- [ChatVis (tanwimallick)](https://github.com/tanwimallick/ChatVis) — the
+  original ChatVis notebooks that this artifact reimplements and preserves.
+- [ChatVis (tpeterka)](https://github.com/tpeterka/ChatVis) — the ChatVis
+  scientific visualization agent and benchmark suite.
