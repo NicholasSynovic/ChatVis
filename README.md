@@ -16,6 +16,12 @@ ChatVis ships two pipelines, both wired into the CLI as subcommands:
   ParaView code snippets from a FAISS index and injects them into the
   code-generation prompt instead of running a prompt-improvement stage.
 
+A third line of work, **`v3`**, lives under `chatvis/v3/` but is **not** a
+pipeline and is **not** wired into the CLI. It is an OpenCode-native rewrite of
+the same workflow as composable agent primitives — a prompt-formatting subagent
+and a ParaView code-generation skill. See [v3 (experimental)](#v3-experimental)
+below and `chatvis/v3/README.md` for details.
+
 DOIs:
 
 - v1: <https://doi.org/10.1109/SCW63240.2024.00014>
@@ -59,6 +65,40 @@ stages plus the same bounded repair loop:
 3. **Execute under `pvpython`** — `chatvis.pvpython.run_pvpython` runs the
    script, and `chatvis.llm.improve_code_v2` drives the bounded repair loop
    when a failure is detected.
+
+### v3 (experimental)
+
+`chatvis/v3/` is **not a pipeline.** Nothing in `chatvis/*.py` imports it, there
+is no `run_v3_pipeline`, and `v3` is not a CLI subcommand — so none of the
+`uv run chatvis ...` invocations below apply to it. It is a pair of
+OpenCode-native artifacts that re-express the same two responsibilities (shape
+the prompt, then generate a ParaView script) as composable agent primitives
+rather than a monolithic Python orchestrator:
+
+- **`agents/paraview-prompt-formatter.md`** — an OpenCode **subagent**
+  (`mode: subagent`, all tool permissions denied) that turns a casual or vague
+  visualization request into a precise, flat-prose ParaView prompt. It blocks on
+  the two required paths (input data file, output screenshot), preserves every
+  concrete value verbatim, maps casual terms to ParaView operations, and bakes
+  in conventions (save a screenshot, render at 1920 x 1080). This is an
+  evolution of the v1 prompt-improvement stage, now interactive and
+  path-blocking.
+- **`skills/paraview-coder/`** — an OpenCode **skill** that writes one complete
+  headless `pvpython` script and saves a screenshot. `SKILL.md` defines the
+  output contract (a single fenced `python` block), the placeholder-substitution
+  rules (`<input_path>`, `<output_path>`, the `'var0'` array sentinel), an
+  eight-step build workflow, and a "gotchas" section distilled from observed
+  `pvpython` failure modes. It is backed by six load-on-demand `references/`
+  catalogs (readers, filters, displays/color, rendering/camera, layout/views,
+  output) — an evolution of v1's inline few-shot snippets and v2's retrieved
+  snippets — plus three `evals/` scenarios that map onto the same canonical
+  datasets used by `v1`/`v2`.
+
+The repair loop that `v1` and `v2` hardcode is delegated to the host agent in
+`v3`. Because it is not part of the package, `v3` is not installed by `uv sync`;
+the components are used by registering them with OpenCode. Treat `v1`/`v2` as the
+wired pipelines and `v3` as the direction-of-travel prototype. Full documentation
+is in `chatvis/v3/README.md`.
 
 ## Downloading the project
 
@@ -332,6 +372,10 @@ in-depth description of the codebase.
     - `v1/` — `v1` prompts and few-shot documents.
     - `v2/` — `v2` RAG corpus and embeddings (`documents/code.py`,
       `prompts/`).
+    - `v3/` — **experimental, not wired into the CLI.** OpenCode agent/skill
+      artifacts: a prompt-formatting subagent (`agents/`) and a ParaView
+      code-generation skill (`skills/paraview-coder/`). See
+      `chatvis/v3/README.md`.
 - `notebooks/` — the five scenario notebooks, kept as paper-reproducibility
   artifacts.
 - `data/` — the datasets plus the tracked `data/benchmark/` reference set.
