@@ -30,6 +30,11 @@ script that runs under `pvpython` and writes a screenshot to disk. `pvpython`
 is headless: there is no interactive window, so the script must build the whole
 pipeline, frame the camera explicitly, and save an image — nothing is implicit.
 
+Before writing any code, the raw request is normalized into a structured,
+flat-prose ParaView prompt by the `paraview-prompt-formatter` subagent (see
+Step 0). Every step after that consumes the formatted prompt, not the raw
+request.
+
 ## Output contract
 
 Return the script as **one** fenced `python ... ` block containing the
@@ -55,10 +60,30 @@ leave them in the final script:
   `references/readers.md`). A leftover `'var0'` on a dataset that has no such
   array is the single most common cause of a blank or failed render.
 
+## Step 0: Format the request (always first)
+
+**Before generating any code**, call the Task tool with
+`subagent_type: paraview-prompt-formatter`, passing the user's raw
+natural-language request verbatim as the prompt. This is mandatory and runs
+first for every request — even ones that already look well-structured.
+
+The subagent returns a structured, flat-prose ParaView prompt: ordered
+pipeline operations with concrete values preserved verbatim, the input/output
+paths, and a 1920 x 1080 screenshot convention baked in.
+
+The subagent is **blocking on paths**: if the input data path or output
+screenshot path is missing, it will ask the user for them and will not emit a
+formatted prompt until both are provided. Do not write any code until the
+subagent returns a formatted prompt. Relay its question to the user, wait for
+the answer, and re-invoke it if needed.
+
+Every step below consumes the **formatted prompt** produced here, not the raw
+user request.
+
 ## Workflow
 
-Read the request line by line and build the pipeline in this order. Skip steps
-that the request does not call for.
+Read the **formatted prompt** line by line and build the pipeline in this order.
+Skip steps that the prompt does not call for.
 
 1. **Reader** — pick the reader that matches the input file extension.
    See `references/readers.md`.
