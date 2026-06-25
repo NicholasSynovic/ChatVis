@@ -96,9 +96,50 @@ rather than a monolithic Python orchestrator:
 
 The repair loop that `v1` and `v2` hardcode is delegated to the host agent in
 `v3`. Because it is not part of the package, `v3` is not installed by `uv sync`;
-the components are used by registering them with OpenCode. Treat `v1`/`v2` as the
-wired pipelines and `v3` as the direction-of-travel prototype. Full documentation
-is in `chatvis/v3/README.md`.
+the components are registered with OpenCode (see
+[Registering v3 with OpenCode](#registering-v3-with-opencode) below). Treat
+`v1`/`v2` as the wired pipelines and `v3` as the direction-of-travel prototype.
+Full documentation is in `chatvis/v3/README.md`.
+
+#### Registering v3 with OpenCode
+
+The repository ships a project-scoped OpenCode config so that opening OpenCode
+in the repo root loads the v3 skill and subagent automatically. Two pieces wire
+this up, and **both are already committed** — a fresh clone normally needs no
+setup beyond restarting OpenCode.
+
+1. **The skill** is registered by `opencode.json` at the repo root, which points
+   OpenCode's skill loader at the v3 skills directory:
+
+    ```json
+    {
+        "$schema": "https://opencode.ai/config.json",
+        "skills": {
+            "paths": ["chatvis/v3/skills"]
+        }
+    }
+    ```
+
+2. **The subagent** is registered through a symlink under `.opencode/agent/`,
+   because OpenCode only discovers agent files in `.opencode/agent(s)/` and has
+   no arbitrary-path option for agents. The symlink points back at the v3 source
+   so there is a single source of truth.
+
+If you need to recreate the symlink (for example on a Windows checkout, or any
+checkout where symlinks were not preserved), run the following from the repo
+root:
+
+```bash
+mkdir -p .opencode/agent
+ln -s ../../chatvis/v3/agents/paraview-prompt-formatter.md \
+    .opencode/agent/paraview-prompt-formatter.md
+```
+
+The target is relative, so it stays valid across clones. OpenCode loads config
+once at startup and does not hot-reload it, so **quit and restart OpenCode**
+after changing `opencode.json` or recreating the symlink. None of this affects
+the Python package or the `uv run chatvis ...` CLI — it only makes the v3 skill
+and subagent available inside OpenCode.
 
 ## Downloading the project
 

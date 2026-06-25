@@ -109,7 +109,34 @@ datasets, and the same "extract the first python block" output contract.
 ## Status and usage
 
 v3 is an experiment. It is **not** installed by `uv sync` and has no entry point
-in the package. To use the components, register them with OpenCode (for example,
-by linking the agent and skill into an OpenCode agents/skills directory); the
-package CLI is unaffected either way. Treat `v1`/`v2` as the wired pipelines and
-`v3` as the direction-of-travel prototype.
+in the package. It is instead registered with OpenCode through two committed
+artifacts at the repository root:
+
+- **`opencode.json`** registers the skill by pointing OpenCode's skill loader at
+  this directory's parent skills folder:
+
+    ```json
+    {
+        "$schema": "https://opencode.ai/config.json",
+        "skills": {
+            "paths": ["chatvis/v3/skills"]
+        }
+    }
+    ```
+
+- **`.opencode/agent/paraview-prompt-formatter.md`** is a relative symlink to
+  `agents/paraview-prompt-formatter.md` here. OpenCode only discovers agents in
+  `.opencode/agent(s)/`, so the symlink surfaces this subagent there while
+  keeping the v3 file as the single source of truth. To recreate it from the
+  repo root:
+
+    ```bash
+    mkdir -p .opencode/agent
+    ln -s ../../chatvis/v3/agents/paraview-prompt-formatter.md \
+        .opencode/agent/paraview-prompt-formatter.md
+    ```
+
+OpenCode does not hot-reload config, so **restart OpenCode** after editing
+`opencode.json` or recreating the symlink. The package CLI is unaffected either
+way. Treat `v1`/`v2` as the wired pipelines and `v3` as the direction-of-travel
+prototype.
